@@ -19,12 +19,13 @@ from franka_sim.controllers import opspace
 from franka_sim.mujoco_gym_env import GymRenderingSpec, MujocoGymEnv
 
 _HERE = Path(__file__).parent
-# _XML_PATH = _HERE / "xmls"  / "scene.xml"
 _XML_PATH = _HERE / "xmls" / "scene.xml"
 _UR10_HOME = np.asarray([-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0])
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
 _SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
 
+
+# lancia full simulazione GYM_Mujoco pick_obj con ur, con comportamento casuale
 
 class UR10eGymEnv(MujocoGymEnv):
     metadata = {"render_modes": ["rgb_array", "human"]}
@@ -60,33 +61,10 @@ class UR10eGymEnv(MujocoGymEnv):
         }
 
         self.render_mode = render_mode
-        self.camera_id = (0, 1)
+        self.camera_id = (0,1) 
         self.image_obs = image_obs
-        
-        ############# IO ############
 
-         # Get the dof and actuator ids for the joints we wish to control.
-        # joint_names = [
-        # "shoulder_pan_joint",
-        # "shoulder_lift_joint",
-        # "elbow_joint",
-        # "wrist_1_joint",
-        # "wrist_2_joint",
-        # "wrist_3_joint",
-        # ]
-        # act_names = [
-        # "shoulder_pan",
-        # "shoulder_lift",
-        # "elbow",
-        # "wrist_1",
-        # "wrist_2",
-        # "wrist_3",
-        # ]
-        # self._panda_dof_ids = np.array([self._model.joint(name).id for name in joint_names])
-        # self._panda_ctrl_ids = np.array([self._model.actuator(name).id for name in act_names])
-        ############# IO ############
-        
-        # Caching.#
+        # Caching.
         self._ur10_dof_ids = np.asarray(
             [self._model.joint(name).id for name in [
                 "shoulder_pan_joint",
@@ -107,17 +85,10 @@ class UR10eGymEnv(MujocoGymEnv):
                 "wrist_3"
             ]]
         )
-# self._gripper_ctrl_id = self._model.actuator("fingers_actuator").id
-        # self._pinch_site_id = self._model.site("pinch").id
-        # self._block_z = self._model.geom("block").size[2]
-        # self._gripper_ctrl_id = self._model.actuator("ur10_fingers_actuato       # self._pinch_site_id = self._model.site("uh").id
-# self._block_z = self._model.geom("block").size[2]
         self._gripper_ctrl_id = self._model.actuator("fingers_actuator").id
-        # self._pinch_site_id = self._model.site("pinch").id
-
-        # Define _block_z
+        self._pinch_site_id = self._model.site("pinch").id
         self._block_z = self._model.geom("block").size[2]
-        
+
         self.observation_space = spaces.Dict(
             {
                 "state": spaces.Dict(
@@ -184,12 +155,15 @@ class UR10eGymEnv(MujocoGymEnv):
             self.data,
         )
         self._viewer.render(self.render_mode)
+        print("Viewer created")  # Aggiungi questa linea per debug
+
 
     def reset(
         self, seed=None, **kwargs
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         """Reset the environment."""
         mujoco.mj_resetData(self._model, self._data)
+        # print(" \n\n ***************** \n\n")
 
         # Reset arm to home position.
         self._data.qpos[self._ur10_dof_ids] = _UR10_HOME
@@ -207,8 +181,9 @@ class UR10eGymEnv(MujocoGymEnv):
         # Cache the initial block height.
         self._z_init = self._data.sensor("block_pos").data[2]
         self._z_success = self._z_init + 0.2
-
-        obs = self._compute_observation()
+        # print(" \n\n ********** 2 ******* \n\n")
+        obs = self._compute_observation() #### <si pianta qua
+        # print(" \n\n ********* 3 ******** \n\n")
         return obs, {}
 
     def step(
@@ -265,7 +240,9 @@ class UR10eGymEnv(MujocoGymEnv):
     def render(self):
         self._viewer.render(self.render_mode)
         rendered_frames = []
+        # print("\n\n --- RENDER 1 --- ")
         for cam_id in self.camera_id:
+            # print("\n\n --- RENDER camera id: --- ", cam_id) ## 0 e 1 
             rendered_frames.append(
                 self._viewer.render(render_mode="rgb_array", camera_id=cam_id)
             )
@@ -288,14 +265,16 @@ class UR10eGymEnv(MujocoGymEnv):
             self._data.ctrl[self._gripper_ctrl_id] / 255, dtype=np.float32
         )
         obs["state"]["gripper_pose"] = gripper_pose
-
+        # print("\n\n ###### COMP_OBS_1 ###### ")
         if self.image_obs:
             obs["images"] = {}
-            obs["images"]["front"], obs["images"]["wrist"] = self.render()
+            # print("\n\n ###### COMP_OBS_2 ###### ")
+            obs["images"]["front"], obs["images"]["wrist"] = self.render() ### si blocca qua
+            # print("\n\n ###### COMP_OBS_3 ###### ")
         else:
             block_pos = self._data.sensor("block_pos").data.astype(np.float32)
             obs["state"]["block_pos"] = block_pos
-
+        # print("\n\n ###### COMP_OBS_ZZZ ###### ")
         return obs
 
     def _compute_reward(self) -> float:
@@ -308,10 +287,7 @@ class UR10eGymEnv(MujocoGymEnv):
         rew = 0.3 * r_close + 0.7 * r_lift
         return rew
     
-    def _is_success(self) -> bool: #### qui c'è l'algoritmo che determina nella simulazione l'esito success
-        ## NON USA CLASSIFIER DI NESSUN TIPO:
-        # semplicemente controlla se la distanza tra il blocco e il gripper è minore di 0.05 
-        # e se il sollevamento del blocco è maggiore di 0.2
+    def _is_success(self) -> bool:
         block_pos = self._data.sensor("block_pos").data
         tcp_pos = self._data.sensor("ur10/pinch_pos").data
         dist = np.linalg.norm(block_pos - tcp_pos)
@@ -320,10 +296,9 @@ class UR10eGymEnv(MujocoGymEnv):
 
 
 if __name__ == "__main__":
-    # env = PandaPickCubeGymEnv(render_mode="human")
-    env = UR10eGymEnv(render_mode="human") # UR10eGymEnv
+    env = UR10eGymEnv(render_mode="human")
     env.reset()
     for i in range(100):
-        env.step(np.random.uniform(-1, 1, 4))
+        env.step(np.random.uniform(-1, 1, 7))
         env.render()
     env.close()

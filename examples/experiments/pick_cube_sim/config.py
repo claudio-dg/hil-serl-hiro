@@ -66,4 +66,5 @@ class TrainConfig(DefaultTrainingConfig):
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func) # questo inviluppa solo se classifier=True!!
         env = GripperPenaltyWrapper(env, penalty=-0.02)
+        # print("\n\n #### config AAAA ##### \n\n")  
         return env

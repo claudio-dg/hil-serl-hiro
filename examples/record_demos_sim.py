@@ -35,7 +35,9 @@ def main(_):
     listener.start()
     assert FLAGS.exp_name in CONFIG_MAPPING, 'Experiment folder not found.'
     config = CONFIG_MAPPING[FLAGS.exp_name]()
+    # print(" \n\n\n AAA \n\n\n")
     env = config.get_environment(fake_env=False, save_video=False, classifier=False)
+    # print(" \n\n\n BBB \n\n\n")
     # env = config.get_environment(fake_env=False, save_video=True, classifier=False)
 
     obs, info = env.reset()
