@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "examples/record_demos_sim.py",
+            "console": "integratedTerminal",
+            "args": ["--exp_name", "pick_cube_sim", "--successes_needed", "30"],
+            "env": {
+            "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}:/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/franka_sim"
+            }
+        }
+    ]
+}
