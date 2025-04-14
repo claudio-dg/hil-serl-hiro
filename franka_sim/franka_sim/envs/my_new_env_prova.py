@@ -59,6 +59,7 @@ class UR10eGymEnv(MujocoGymEnv):
             ],
             "render_fps": int(np.round(1.0 / self.control_dt)),
         }
+        # self._ros_node
 
         self.render_mode = render_mode
         self.camera_id = (0,1) 
@@ -258,6 +259,7 @@ class UR10eGymEnv(MujocoGymEnv):
         obs["state"]["tcp_pose"] = np.concatenate([tcp_pos, tcp_quat]).astype(np.float32)
 
         tcp_vel = self._data.sensor("ur10/pinch_vel").data
+        # print("###### tcp_vel: ", tcp_vel)
         tcp_angvel = self._data.sensor("ur10/pinch_angvel").data
         obs["state"]["tcp_vel"] = np.concatenate([tcp_vel, tcp_angvel]).astype(np.float32)
 
@@ -292,11 +294,15 @@ class UR10eGymEnv(MujocoGymEnv):
         tcp_pos = self._data.sensor("ur10/pinch_pos").data
         dist = np.linalg.norm(block_pos - tcp_pos)
         lift = block_pos[2] - self._z_init
-        return dist < 0.05 and lift > 0.2
-
+        # return dist < 0.05 and lift > 0.2
+        print("\n ##### DIST = ", dist)
+        return dist < 0.57 # provo a fare sim che va ok quando vicino a cubo e basta
 
 if __name__ == "__main__":
     env = UR10eGymEnv(render_mode="human")
+    ###########
+    mujoco.mj_loadPluginLibrary("/home/claudiodelgaizo/ros/ur_gazebo_ws/install/mujoco_ros_utils/lib/libMujocoRosUtilsPlugin.so")
+    ###########
     env.reset()
     for i in range(100):
         env.step(np.random.uniform(-1, 1, 7))
