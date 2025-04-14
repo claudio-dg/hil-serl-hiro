@@ -13,7 +13,7 @@
 **This is the adapted version of the original repo for the Franka arm simulation. For instructions on how to run the simulated robot, please refer to the page: [Franka Simulation](/franka_sim/README.md)**
 
 
-HIL-SERL provides a set of libraries, env wrappers, and examples to train RL policies using a combination of demonstrations and human corrections to perform robotic manipulation tasks with near-perfect success rates. The following sections describe how to use HIL-SERL. We will illustrate the usage with examples.
+HIL-SERL provides a set of libraries, env wrappers and examples to train RL policies using a combination of demonstrations and human corrections to perform robotic manipulation tasks with near-perfect success rates. The following sections describe how to use HIL-SERL. We will illustrate the usage with examples.
 
 🎬: [HIL-SERL video](https://www.youtube.com/watch?v=GuD_-zhJgbs)
 
