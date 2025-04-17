@@ -9,7 +9,7 @@ import rclpy
 
 
 @dataclass(frozen=True)
-class GymRenderingSpec:
+class GymRenderingSpec:   ######### rimane questa? posso/devo fare un unico UR_pick_gym_env.py senza questo mujocoGym?
     height: int = 128
     width: int = 128
     camera_id: str | int = -1
@@ -21,31 +21,34 @@ class MujocoGymEnv(gym.Env):
 
     def __init__(
         self,
-        xml_path: Path, #PosixPath('/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/franka_sim/franka_sim/envs/xmls/arena.xml')
-        # xml_path: str = '/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/franka_sim/franka_sim/envs/xmls/AAAAAAAAAscene.xml',
+        xml_path: Path, 
         seed: int = 0,
         control_dt: float = 0.02,
         physics_dt: float = 0.002,
         time_limit: float = float("inf"),
         render_spec: GymRenderingSpec = GymRenderingSpec(),
     ):
-        print(f"xml_path: {xml_path}")  # Aggiungi questa linea per debug
 
-        # mujoco.mj_loadPluginLibrary("/home/claudiodelgaizo/ros/ur_gazebo_ws/install/mujoco_ros_utils/lib/libMujocoRosUtilsPlugin.so")
+        # self._model = mujoco.MjModel.from_xml_path(xml_path.as_posix()) ## USELESS IN OUR CASE, --> serve per parte di controllo che noi gestiamo lato ROS        
+        # self._model.vis.global_.offwidth = render_spec.width
+        # self._model.vis.global_.offheight = render_spec.height
 
-        self._model = mujoco.MjModel.from_xml_path(xml_path.as_posix())
-        self._model.vis.global_.offwidth = render_spec.width
-        self._model.vis.global_.offheight = render_spec.height
-        self._data = mujoco.MjData(self._model)
-        self._model.opt.timestep = physics_dt
+        self._data = mujoco.MjData(self._model) ##############################
+        ## questo è quello che devo riempre tramite ros col mio topic /MujocoState, solo quelle cose?
+        ## poi in envSPecifico, quando chiama il _data.reset devo chiamare il servizio che ho creato per inviare il reset a mujoco, hiusto?
+        ## ma devo fare stessa cosa anche per mj_data.step o fa in automatico? --> in teoria fa in automatico lato ROS (aggiorna mujoco automaticamente)
+
+        # self._model.opt.timestep = physics_dt
         self._control_dt = control_dt
         self._n_substeps = int(control_dt // physics_dt)
         self._time_limit = time_limit
         self._random = np.random.RandomState(seed)
-        self._viewer: Optional[mujoco.Renderer] = None
+        self._viewer: Optional[mujoco.Renderer] = None ################ cancellare
         self._render_specs = render_spec
         # self._ros_node = rclpy.create_node("base_mujoco_gym_env")
 
+
+    ## sto render nel mio caso sparisce e basta? faccio già il rendere su mujoco mio
     def render(self):
         if self._viewer is None:
             self._viewer = mujoco.Renderer(
@@ -56,7 +59,7 @@ class MujocoGymEnv(gym.Env):
         self._viewer.update_scene(self._data, camera=self._render_specs.camera_id)
         return self._viewer.render()
 
-    def close(self) -> None:
+    def close(self) -> None: ### questa non l'abbiamo implementata, volendo si può ma non  troppo utile.. comunque direi cancello anche questa
         if self._viewer is not None:
             self._viewer.close()
             self._viewer = None

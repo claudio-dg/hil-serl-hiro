@@ -188,7 +188,7 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         self._z_init = self._data.sensor("block_pos").data[2]
         self._z_success = self._z_init + 0.2
 
-        obs = self._compute_observation()
+        obs = self._compute_observation() ### sto valore viene preso ad esempio nel rec_demo_sim.py
         return obs, {}
 
     def step(
@@ -206,13 +206,22 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
             truncated: bool,
             info: dict[str, Any]
         """
-        x, y, z, rx, ry, rz, grasp = action
+        x, y, z, rx, ry, rz, grasp = action # prendi action in input da RL
+
+        #######################################################################################################################################################################
+        ########################### questa è la parte di controllo che dovrò comunicare tramide "bridge" al mio controllore per muovere sim mujoco!! ###########################
+        ########################################################################################################################################################################
+               
+        #### prende la ACTION in input dall Algoritmo di RL e lo "Converte" in comandi per il gripper e  il robot, 
+        ### in questo caso poi setta direttamente i valori dei "ctrl" di Mujoco e glieli passa facendo il mj_step
+        ## nel mio caso dovrò fare la stessa identica cosa ma all'interno del mio bridge 
+        # (inviando i comandi al controllore ROS che fa tutto lui lato mujoco & settando il ctrl del gripper (COME FACCIO IN JOYSTICK_CODE), giusto?)
 
         # Set the mocap position.
-        pos = self._data.mocap_pos[0].copy()
-        dpos = np.asarray([x, y, z]) * self._action_scale[0]
-        npos = np.clip(pos + dpos, *_CARTESIAN_BOUNDS)
-        self._data.mocap_pos[0] = npos
+        pos = self._data.mocap_pos[0].copy() # leggi current pose
+        dpos = np.asarray([x, y, z]) * self._action_scale[0] #leggi offset 'd' input
+        npos = np.clip(pos + dpos, *_CARTESIAN_BOUNDS) # npos = pos + offset
+        self._data.mocap_pos[0] = npos # setta variabile "goal_pos" da mandare al controllore tau
 
         # Set gripper grasp.
         g = self._data.ctrl[self._gripper_ctrl_id] / 255
@@ -226,13 +235,19 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
                 data=self._data,
                 site_id=self._pinch_site_id,
                 dof_ids=self._panda_dof_ids,
-                pos=self._data.mocap_pos[0],
+                pos=self._data.mocap_pos[0], ###### qua mandata pos al controllore
                 ori=self._data.mocap_quat[0],
                 joint=_PANDA_HOME,
                 gravity_comp=True,
             )
             self._data.ctrl[self._panda_ctrl_ids] = tau
-            mujoco.mj_step(self._model, self._data)
+            mujoco.mj_step(self._model, self._data) ##########altra chiamata servizio qua?###########
+
+
+        #######################################################################################################################################################################
+        #######################################################################################################################################################################
+
+
         obs = self._compute_observation()
         rew = self._compute_reward()
         success = self._is_success()
@@ -243,7 +258,9 @@ class PandaPickCubeGymEnv(MujocoGymEnv):
         return obs, rew, terminated, False, {"succeed": success}
 
     def render(self):
-        self._viewer.render(self.render_mode)
+        self._viewer.render(self.render_mode)  
+        # ---> Renders the scene as a numpy array of pixel values
+        # quindi in teoria è stesso input che invio lato ROS mi pare...
         rendered_frames = []
         for cam_id in self.camera_id:
             rendered_frames.append(
