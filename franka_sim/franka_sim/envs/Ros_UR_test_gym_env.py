@@ -91,12 +91,13 @@ class URPickRosEnv(MujocoGymEnv):
         """Esegue uno step nell'environment."""
 
 
-        # TODO: Qui puoi implementare la logica per inviare comandi al robot tramite ROS (bridge da implementare -> posso semplicemente aggiungerlo a StateBridge già esistente?)
+        # TODO: Qui implementare la logica per inviare comandi al robot tramite ROS ( FATTO con bridge aggiunto a StateBridge già esistente?)
         # e aggiornare lo stato dell'environment.        
 
         self.publish_action(action)
 
-        ##### POST INVIO CONTROLLI ROBOT,  checko le observation! (da capire questione sincronia affinchè 
+        ##### POST INVIO CONTROLLI ROBOT,  checko le observation! 
+        # TODO: (da capire questione sincronia affinchè 
         # avvenga la lettura dello stato esatto subito post azione...) ####
 
         done = False  # Determina se l'episodio è terminato
@@ -104,7 +105,13 @@ class URPickRosEnv(MujocoGymEnv):
     
         obs = self.compute_observation()
         reward = self._compute_reward()
-        # success = self._is_success()
+        success = self._is_success()
+
+        done = success # test temporaneo
+
+
+        #  TODO: implementare logica per ricompensa e fine episodio SPECIFICHE PER TASK (pickup?)
+
         # block_pos = self._data.sensor("block_pos").data
         # outside_bounds = np.any(block_pos[:2] < (_SAMPLING_BOUNDS[0] - 0.05)) or np.any(block_pos[:2] > (_SAMPLING_BOUNDS[1] + 0.05))
         # terminated = self.time_limit_exceeded() or success or outside_bounds
@@ -112,26 +119,27 @@ class URPickRosEnv(MujocoGymEnv):
         return obs, reward, done, False, info
         # return obs, reward, terminated, False, {"succeed": success}
 
-
-    # def reset(self): --> implemento direttamente in classe madre
-    #     return {},{}
-
-
     def compute_observation(self) -> dict:
         obs = {}
         obs["state"] = {}
 
 
-        # read info from mujoco (through Ros Topic) and reshape state msgs
-        # ------ tcp pose ------
-        tcp_position = np.array([self._current_state.tcp_pose.pose.position.x,
-                                 self._current_state.tcp_pose.pose.position.y,
-                                 self._current_state.tcp_pose.pose.position.z])
+        # Legge lo stato corrente in modo thread-safe
+        with self._state_mutex:
+            current_state = self._current_state
         
-        tcp_orientation = np.array([self._current_state.tcp_pose.pose.orientation.x,
-                                    self._current_state.tcp_pose.pose.orientation.y,
-                                    self._current_state.tcp_pose.pose.orientation.z,
-                                    self._current_state.tcp_pose.pose.orientation.w])
+        #### read info from mujoco (through Ros Topic) and reshape state msgs ####
+        # ------ tcp pose ------
+        tcp_position = np.array([current_state.tcp_pose.pose.position.x,
+                                 current_state.tcp_pose.pose.position.y,
+                                 current_state.tcp_pose.pose.position.z])
+        
+        tcp_orientation = np.array([current_state.tcp_pose.pose.orientation.x,
+                                    current_state.tcp_pose.pose.orientation.y,
+                                    current_state.tcp_pose.pose.orientation.z,
+                                    current_state.tcp_pose.pose.orientation.w])
+
+        tcp_position[2] -= 0.145  # Offset lungo l'asse Z per il reale TCP (teoria 0.145)
         
         tcp_pose = np.concatenate([tcp_position,tcp_orientation]).astype(np.float32)
 
@@ -140,13 +148,13 @@ class URPickRosEnv(MujocoGymEnv):
 
         # ------ tcp Vel ------
 
-        tcp_lin_velocity = np.array([self._current_state.tcp_velocity.twist.linear.x,
-                                    self._current_state.tcp_velocity.twist.linear.y,
-                                    self._current_state.tcp_velocity.twist.linear.z])
+        tcp_lin_velocity = np.array([current_state.tcp_velocity.twist.linear.x,
+                                    current_state.tcp_velocity.twist.linear.y,
+                                    current_state.tcp_velocity.twist.linear.z])
         
-        tcp_ang_velocity = np.array([self._current_state.tcp_velocity.twist.angular.x,
-                                     self._current_state.tcp_velocity.twist.angular.y,
-                                     self._current_state.tcp_velocity.twist.angular.z])
+        tcp_ang_velocity = np.array([current_state.tcp_velocity.twist.angular.x,
+                                     current_state.tcp_velocity.twist.angular.y,
+                                     current_state.tcp_velocity.twist.angular.z])
  
         tcp_velocity = np.concatenate([tcp_lin_velocity,tcp_ang_velocity]).astype(np.float32)
 
@@ -155,35 +163,34 @@ class URPickRosEnv(MujocoGymEnv):
 
         # ------ tcp force/torque  (utile nel caso in cui debba basare reward su forza, es: plug in hole task direi) ------
 
-        tcp_force = np.array([self._current_state.tcp_force_torque.wrench.force.x,
-                              self._current_state.tcp_force_torque.wrench.force.y,
-                              self._current_state.tcp_force_torque.wrench.force.z])
+        tcp_force = np.array([current_state.tcp_force_torque.wrench.force.x,
+                              current_state.tcp_force_torque.wrench.force.y,
+                              current_state.tcp_force_torque.wrench.force.z])
         
-        tcp_torque = np.array([self._current_state.tcp_force_torque.wrench.torque.x,
-                               self._current_state.tcp_force_torque.wrench.torque.y,
-                               self._current_state.tcp_force_torque.wrench.torque.z])
+        tcp_torque = np.array([current_state.tcp_force_torque.wrench.torque.x,
+                               current_state.tcp_force_torque.wrench.torque.y,
+                               current_state.tcp_force_torque.wrench.torque.z])
         
         tcp_force_torque = np.concatenate([tcp_force, tcp_torque]).astype(np.float32)
 
         obs["state"]["tcp_ft"] = tcp_force_torque
 
         # ------ gripper pose ------
+
         # divido per avere tra 0,1 (converto eventualmente in booleano? vediamo per ora lascio così)
-        gripper_pose = np.array(self._current_state.gripper_command.data / 255, dtype=np.float32) # max = 239 da joystick
-        
+        gripper_pose = np.array(current_state.gripper_command.data / 239, dtype=np.float32) # max = 239 da joystick
         obs["state"]["gripper_pose"] = gripper_pose
 
-
-
         # ------ images ------
-        # hard code the known number of cameras (this)
-        if self.image_obs:
-            obs["images"] = {}
-            obs["images"]["right"] = ros_image_to_numpy(self._current_state.camera_images[0])
-            # obs["images"]["left"] = ros_image_to_numpy(self._current_state.camera_images[1])
+        # hard code the known number of cameras 
+        # if self.image_obs: ###############commenta per togliere camera
+        #     obs["images"] = {} ###############commenta per togliere camera
+        #     obs["images"]["right"] = ros_image_to_numpy(current_state.camera_images[0]) ###############commenta per togliere camera
+           
+            # obs["images"]["left"] = ros_image_to_numpy(current_state.camera_images[1])
 
             # DEBUG TEST
-            right_image = ros_image_to_numpy(self._current_state.camera_images[0])
+            # right_image = ros_image_to_numpy(current_state.camera_images[0])
             # print(f" *-*-*- Right image shape: {right_image.shape}, dtype: {right_image.dtype}")
             # print(right_image) # stampa valori pixels
 
@@ -195,14 +202,14 @@ class URPickRosEnv(MujocoGymEnv):
 
         # ------ object pose : this case -> 1 single obj ------
 
-        object_position = np.array([self._current_state.obj_poses[0].pose.position.x,
-                                    self._current_state.obj_poses[0].pose.position.y,
-                                    self._current_state.obj_poses[0].pose.position.z])
+        object_position = np.array([current_state.obj_poses[0].pose.position.x,
+                                    current_state.obj_poses[0].pose.position.y,
+                                    current_state.obj_poses[0].pose.position.z])
         
-        object_orientation = np.array([self._current_state.obj_poses[0].pose.orientation.x,
-                                       self._current_state.obj_poses[0].pose.orientation.y,
-                                       self._current_state.obj_poses[0].pose.orientation.z,
-                                       self._current_state.obj_poses[0].pose.orientation.w])
+        object_orientation = np.array([current_state.obj_poses[0].pose.orientation.x,
+                                       current_state.obj_poses[0].pose.orientation.y,
+                                       current_state.obj_poses[0].pose.orientation.z,
+                                       current_state.obj_poses[0].pose.orientation.w])
         
         object_pose = np.concatenate([object_position,object_orientation]).astype(np.float32)
 
@@ -210,13 +217,13 @@ class URPickRosEnv(MujocoGymEnv):
 
         # ------ object velocity : this case -> 1 single obj------
 
-        object_lin_velocity = np.array([self._current_state.obj_velocities[0].twist.linear.x,
-                                    self._current_state.obj_velocities[0].twist.linear.y,
-                                    self._current_state.obj_velocities[0].twist.linear.z])
+        object_lin_velocity = np.array([current_state.obj_velocities[0].twist.linear.x,
+                                    current_state.obj_velocities[0].twist.linear.y,
+                                    current_state.obj_velocities[0].twist.linear.z])
         
-        object_ang_velocity = np.array([self._current_state.obj_velocities[0].twist.angular.x,
-                                       self._current_state.obj_velocities[0].twist.angular.y,
-                                       self._current_state.obj_velocities[0].twist.angular.z])
+        object_ang_velocity = np.array([current_state.obj_velocities[0].twist.angular.x,
+                                       current_state.obj_velocities[0].twist.angular.y,
+                                       current_state.obj_velocities[0].twist.angular.z])
         
         object_velocity = np.concatenate([object_lin_velocity,object_ang_velocity]).astype(np.float32)
 
@@ -227,11 +234,6 @@ class URPickRosEnv(MujocoGymEnv):
         return obs
 
     def _compute_reward(self) -> float:
-        # block_pos = self._data.sensor("block_pos").data
-        # tcp_pos = self._data.sensor("2f85/pinch_pos").data
-        # dist = np.linalg.norm(block_pos - tcp_pos)
-        # r_close = np.exp(-20 * dist)
-
 
         ##########################################################################
         ##########################################################################
@@ -248,23 +250,65 @@ class URPickRosEnv(MujocoGymEnv):
         
         ##########################################################################
         ##########################################################################
+
+         # Legge lo stato corrente in modo thread-safe
+        with self._state_mutex:
+            current_state = self._current_state
+
+        obj_Z_init = 0.3 # hard coddo, altrimenti dovrei leggere pose iniziale nel reset, ma avendo reset nel madre è inutilmente complesso.. hard coddo e basta
+        obj_Z_desired = obj_Z_init + 0.2 # hard coddo altezza desiderata = incremento di  0,2
+        object_position = np.array([current_state.obj_poses[0].pose.position.x,
+                                    current_state.obj_poses[0].pose.position.y,
+                                    current_state.obj_poses[0].pose.position.z])
+               
+        tcp_position = np.array([current_state.tcp_pose.pose.position.x,
+                                 current_state.tcp_pose.pose.position.y,
+                                 current_state.tcp_pose.pose.position.z])
         
-        # r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
-        # r_lift = np.clip(r_lift, 0.0, 1.0)
-        # rew = 0.3 * r_close + 0.7 * r_lift
-        # return rew
-        pass
+        tcp_position[2] -= 0.145  # Offset lungo l'asse Z per il reale TCP
+
+        
+        dist = np.linalg.norm(object_position - tcp_position)
+        print(f" ##### Distance between object and tcp: {dist}")
+
+        decay_rate = 20 # larger values --> higher sensitivity to dist changes (rew aumenta + velocemente quando fa variazioni piccole vicine al goal finale,
+        # e più lentamente negli spostamenti ampi/lontani iniziali)
+        target_distance = 0.0075 #0.141 # distanza minima desiderata alla quale raggiungere rew = 1
+        closeness_reward = np.exp(-decay_rate * (dist - target_distance))
+        closeness_reward = np.clip(closeness_reward, 0.0, 1.0) # cappo il valore tra 0-1 per evitare che distanze inferiori a0.15 diano rew>1
+
+        lift_reward = (object_position[2]- obj_Z_init) / (obj_Z_desired - obj_Z_init)
+        lift_reward = np.clip(lift_reward, 0.0, 1.0) # cappa il valore tra 0-1
+
+        total_reward = 0.3 * closeness_reward + 0.7 * lift_reward
+        print(f" \n\n TOT Reward: {total_reward},  \n Closeness REW: {closeness_reward},  \n Lift REW: {lift_reward}")
+        return total_reward
+        
+
     
     def _is_success(self) -> bool: #### qui c'è l'algoritmo che determina nella simulazione l'esito success
-        ## NON USA CLASSIFIER DI NESSUN TIPO:
-        # semplicemente controlla se la distanza tra il blocco e il gripper è minore di 0.05 
-        # e se il sollevamento del blocco è maggiore di 0.2
-        # block_pos = self._data.sensor("block_pos").data
-        # tcp_pos = self._data.sensor("2f85/pinch_pos").data
-        # dist = np.linalg.norm(block_pos - tcp_pos)
-        # lift = block_pos[2] - self._z_init
-        # return dist < 0.05 and lift > 0.2
-        pass
+
+        # Legge lo stato corrente in modo thread-safe
+        with self._state_mutex:
+            current_state = self._current_state
+
+        obj_Z_init = 0.3 # hard coddo, altrimenti dovrei leggere pose iniziale nel reset, ma avendo reset nel madre è inutilmente complesso.. hard coddo e basta
+        object_position = np.array([current_state.obj_poses[0].pose.position.x,
+                                    current_state.obj_poses[0].pose.position.y,
+                                    current_state.obj_poses[0].pose.position.z])
+               
+        tcp_position = np.array([current_state.tcp_pose.pose.position.x,
+                                 current_state.tcp_pose.pose.position.y,
+                                 current_state.tcp_pose.pose.position.z])
+        
+        tcp_position[2] -= 0.145 #  Offset lungo l'asse Z per il reale TCP
+        dist = np.linalg.norm(object_position - tcp_position)
+        print(f" ##### Distance between object and tcp: {dist}")
+        lift = object_position[2] - obj_Z_init
+
+        # return dist < 0.165 and lift > 0.2
+        return dist < 0.05 and lift > 0.2
+
 
 def main():
     print("Avvio dell'environment URPickRosEnv con ROS2...")
@@ -274,19 +318,29 @@ def main():
 
     ur_env.reset()
     rate = ur_env._ros_node.create_rate(10)
-    prova_action = np.array([0.5, 0.0, 0.0, 1.0])
+    # prova_action = np.array([0.5, 0.0, 0.0, 1.0])
+    prova_action = np.array([0.0, 0.0, 0.0, 1.0])
+
     for i in range(10000):
         # print (ur_env._current_state.gripper_command.data)
-        # print (ur_env._current_state.gripper_command.data)
-        if i % 45 == 0:
-            prova_action = -prova_action
-        if i % 250 == 0:
+        # if i % 45 == 0:
+        #     prova_action = -prova_action
+        # if i % 250 == 0:
+        #     ur_env.reset()
+        # ur_env.step(prova_action)
+
+
+        obs, reward, done, aaa, info = ur_env.step(prova_action)
+        if done:
+            print(f" \n\n ################################ \n\n Final observation: {obs}")
+            print(f"Final reward: {reward}")
+            print(f"################################ \n\n")
             ur_env.reset()
-        ur_env.step(prova_action)
-        # ur_env.step(np.random.uniform(-1, 1, 4))
-        # generates a NumPy array of 4 random values, each uniformly sampled between -1 and 1. = action =  (xyz traslation + gripper = 4) 
-        # print(i)
-        # print(prova_action)
+
+
+
+
+        
         # ur_env._ros_node.get_logger().info(f"[UR Gym Env] Ricevuto stato MuJoCo Gripper: {ur_env._current_state.gripper_command.data}")
         rate.sleep()
     ur_env.close()
