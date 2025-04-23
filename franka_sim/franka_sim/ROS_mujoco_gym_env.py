@@ -47,6 +47,9 @@ class MujocoGymEnv(gym.Env):
         self._render_specs = render_spec
         self._current_state = SimulationState()  # Sarà aggiornato dal ROS node
 
+        self._state_mutex = threading.Lock()  # Mutex to protect current_state
+
+
         # Ros setup
         if rclpy.ok() == False:
             rclpy.init()
@@ -107,14 +110,19 @@ class MujocoGymEnv(gym.Env):
     @property
     def current_state(self):
         """Ritorna lo stato aggiornato dell'environment."""
-        return self._current_state
+        with self._state_mutex:
+            return self._current_state
 
 
     # ------------------- ROS Callbacks ------------------- #
     def mujoco_state_cb(self, msg):
         """Callback per aggiornare l'environment con i dati ricevuti da ROS."""
         # self._ros_node.get_logger().info(f" \n\n [Generico Env] Ricevuto stato MuJoCo Gripper: {msg.gripper_command.data}")
-        self._current_state = msg
+        with self._state_mutex:
+            # print("[ ****************************** START] Scrittura su current_state")
+            self._current_state = msg
+        # print("[ ****************************** FINISH] Scrittura su current_state")
+        
         # self.update_from_ros(msg)
     
 
