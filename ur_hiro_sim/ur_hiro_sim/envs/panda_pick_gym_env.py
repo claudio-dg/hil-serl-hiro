@@ -16,18 +16,17 @@ else:
 # from mujoco.glfw import glfw
 
 from franka_sim.controllers import opspace
-from franka_sim.mujoco_gym_env import GymRenderingSpec, MujocoGymEnv
+from ur_hiro_sim.mujoco_gym_env import GymRenderingSpec, MujocoGymEnv
 
 _HERE = Path(__file__).parent
-_XML_PATH = _HERE / "xmls" / "scene.xml"
-_UR10_HOME = np.asarray([-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0])
+# _XML_PATH = _HERE / "xmls"  / "scene.xml"
+_XML_PATH = _HERE / "xmls" / "arena.xml"
+_PANDA_HOME = np.asarray((0, -0.785, 0, -2.35, 0, 1.57, np.pi / 4))
 _CARTESIAN_BOUNDS = np.asarray([[0.2, -0.3, 0], [0.6, 0.3, 0.5]])
 _SAMPLING_BOUNDS = np.asarray([[0.3, -0.15], [0.5, 0.15]])
 
 
-# lancia full simulazione GYM_Mujoco pick_obj con ur, con comportamento casuale
-
-class UR10eGymEnv(MujocoGymEnv):
+class PandaPickCubeGymEnv(MujocoGymEnv):
     metadata = {"render_modes": ["rgb_array", "human"]}
 
     def __init__(
@@ -61,29 +60,15 @@ class UR10eGymEnv(MujocoGymEnv):
         }
 
         self.render_mode = render_mode
-        self.camera_id = (0,1) 
+        self.camera_id = (0, 1)
         self.image_obs = image_obs
-
-        # Caching.
-        self._ur10_dof_ids = np.asarray(
-            [self._model.joint(name).id for name in [
-                "shoulder_pan_joint",
-                "shoulder_lift_joint",
-                "elbow_joint",
-                "wrist_1_joint",
-                "wrist_2_joint",
-                "wrist_3_joint"
-            ]]
+        
+        # Caching.#
+        self._panda_dof_ids = np.asarray(
+            [self._model.joint(f"joint{i}").id for i in range(1, 8)]
         )
-        self._ur10_ctrl_ids = np.asarray(
-            [self._model.actuator(name).id for name in [
-                "shoulder_pan",
-                "shoulder_lift",
-                "elbow",
-                "wrist_1",
-                "wrist_2",
-                "wrist_3"
-            ]]
+        self._panda_ctrl_ids = np.asarray(
+            [self._model.actuator(f"actuator{i}").id for i in range(1, 8)]
         )
         self._gripper_ctrl_id = self._model.actuator("fingers_actuator").id
         self._pinch_site_id = self._model.site("pinch").id
@@ -155,22 +140,19 @@ class UR10eGymEnv(MujocoGymEnv):
             self.data,
         )
         self._viewer.render(self.render_mode)
-        print("Viewer created")  # Aggiungi questa linea per debug
-
 
     def reset(
         self, seed=None, **kwargs
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         """Reset the environment."""
         mujoco.mj_resetData(self._model, self._data)
-        # print(" \n\n ***************** \n\n")
 
         # Reset arm to home position.
-        self._data.qpos[self._ur10_dof_ids] = _UR10_HOME
+        self._data.qpos[self._panda_dof_ids] = _PANDA_HOME
         mujoco.mj_forward(self._model, self._data)
 
         # Reset mocap body to home position.
-        tcp_pos = self._data.sensor("ur10/pinch_pos").data
+        tcp_pos = self._data.sensor("2f85/pinch_pos").data
         self._data.mocap_pos[0] = tcp_pos
 
         # Sample a new block position.
@@ -181,9 +163,8 @@ class UR10eGymEnv(MujocoGymEnv):
         # Cache the initial block height.
         self._z_init = self._data.sensor("block_pos").data[2]
         self._z_success = self._z_init + 0.2
-        # print(" \n\n ********** 2 ******* \n\n")
-        obs = self._compute_observation() #### <si pianta qua
-        # print(" \n\n ********* 3 ******** \n\n")
+
+        obs = self._compute_observation() ### sto valore viene preso ad esempio nel rec_demo_sim.py
         return obs, {}
 
     def step(
@@ -201,13 +182,22 @@ class UR10eGymEnv(MujocoGymEnv):
             truncated: bool,
             info: dict[str, Any]
         """
-        x, y, z, rx, ry, rz, grasp = action
+        x, y, z, rx, ry, rz, grasp = action # prendi action in input da RL
+
+        #######################################################################################################################################################################
+        ########################### questa è la parte di controllo che dovrò comunicare tramide "bridge" al mio controllore per muovere sim mujoco!! ###########################
+        ########################################################################################################################################################################
+               
+        #### prende la ACTION in input dall Algoritmo di RL e lo "Converte" in comandi per il gripper e  il robot, 
+        ### in questo caso poi setta direttamente i valori dei "ctrl" di Mujoco e glieli passa facendo il mj_step
+        ## nel mio caso dovrò fare la stessa identica cosa ma all'interno del mio bridge 
+        # (inviando i comandi al controllore ROS che fa tutto lui lato mujoco & settando il ctrl del gripper (COME FACCIO IN JOYSTICK_CODE), giusto?)
 
         # Set the mocap position.
-        pos = self._data.mocap_pos[0].copy()
-        dpos = np.asarray([x, y, z]) * self._action_scale[0]
-        npos = np.clip(pos + dpos, *_CARTESIAN_BOUNDS)
-        self._data.mocap_pos[0] = npos
+        pos = self._data.mocap_pos[0].copy() # leggi current pose
+        dpos = np.asarray([x, y, z]) * self._action_scale[0] #leggi offset 'd' input
+        npos = np.clip(pos + dpos, *_CARTESIAN_BOUNDS) # npos = pos + offset
+        self._data.mocap_pos[0] = npos # setta variabile "goal_pos" da mandare al controllore tau
 
         # Set gripper grasp.
         g = self._data.ctrl[self._gripper_ctrl_id] / 255
@@ -220,14 +210,20 @@ class UR10eGymEnv(MujocoGymEnv):
                 model=self._model,
                 data=self._data,
                 site_id=self._pinch_site_id,
-                dof_ids=self._ur10_dof_ids,
-                pos=self._data.mocap_pos[0],
+                dof_ids=self._panda_dof_ids,
+                pos=self._data.mocap_pos[0], ###### qua mandata pos al controllore
                 ori=self._data.mocap_quat[0],
-                joint=_UR10_HOME,
+                joint=_PANDA_HOME,
                 gravity_comp=True,
             )
-            self._data.ctrl[self._ur10_ctrl_ids] = tau
-            mujoco.mj_step(self._model, self._data)
+            self._data.ctrl[self._panda_ctrl_ids] = tau
+            mujoco.mj_step(self._model, self._data) ##########altra chiamata servizio qua?###########
+
+
+        #######################################################################################################################################################################
+        #######################################################################################################################################################################
+
+
         obs = self._compute_observation()
         rew = self._compute_reward()
         success = self._is_success()
@@ -238,11 +234,11 @@ class UR10eGymEnv(MujocoGymEnv):
         return obs, rew, terminated, False, {"succeed": success}
 
     def render(self):
-        self._viewer.render(self.render_mode)
+        self._viewer.render(self.render_mode)  
+        # ---> Renders the scene as a numpy array of pixel values
+        # quindi in teoria è stesso input che invio lato ROS mi pare...
         rendered_frames = []
-        # print("\n\n --- RENDER 1 --- ")
         for cam_id in self.camera_id:
-            # print("\n\n --- RENDER camera id: --- ", cam_id) ## 0 e 1 
             rendered_frames.append(
                 self._viewer.render(render_mode="rgb_array", camera_id=cam_id)
             )
@@ -252,54 +248,69 @@ class UR10eGymEnv(MujocoGymEnv):
         obs = {}
         obs["state"] = {}
 
-        tcp_pos = self._data.sensor("ur10/pinch_pos").data
-        tcp_quat = self._data.sensor("ur10/pinch_quat").data
+        tcp_pos = self._data.sensor("2f85/pinch_pos").data
+        tcp_quat = self._data.sensor("2f85/pinch_quat").data
 
         obs["state"]["tcp_pose"] = np.concatenate([tcp_pos, tcp_quat]).astype(np.float32)
 
-        tcp_vel = self._data.sensor("ur10/pinch_vel").data
-        print("###### tcp_vel: ", tcp_vel)
-        tcp_angvel = self._data.sensor("ur10/pinch_angvel").data
+        tcp_vel = self._data.sensor("2f85/pinch_vel").data
+        tcp_angvel = self._data.sensor("2f85/pinch_angvel").data
         obs["state"]["tcp_vel"] = np.concatenate([tcp_vel, tcp_angvel]).astype(np.float32)
 
         gripper_pose = np.array(
             self._data.ctrl[self._gripper_ctrl_id] / 255, dtype=np.float32
         )
         obs["state"]["gripper_pose"] = gripper_pose
-        # print("\n\n ###### COMP_OBS_1 ###### ")
+
         if self.image_obs:
             obs["images"] = {}
-            # print("\n\n ###### COMP_OBS_2 ###### ")
-            obs["images"]["front"], obs["images"]["wrist"] = self.render() ### si blocca qua
-            # print("\n\n ###### COMP_OBS_3 ###### ")
+            obs["images"]["front"], obs["images"]["wrist"] = self.render()
         else:
             block_pos = self._data.sensor("block_pos").data.astype(np.float32)
             obs["state"]["block_pos"] = block_pos
-        # print("\n\n ###### COMP_OBS_ZZZ ###### ")
+
         return obs
 
     def _compute_reward(self) -> float:
         block_pos = self._data.sensor("block_pos").data
-        tcp_pos = self._data.sensor("ur10/pinch_pos").data
+        tcp_pos = self._data.sensor("2f85/pinch_pos").data
         dist = np.linalg.norm(block_pos - tcp_pos)
         r_close = np.exp(-20 * dist)
+         ##########################################################################
+        ##########################################################################
+
+        # The formula `np.exp(-20 * dist)` applies a steep exponential decay to the distance.
+        #  When `dist` is small (close to zero), the value of `r_close` will be close to 1, as `np.exp(0)` equals 1.
+        #  As `dist` increases, the value of `r_close` rapidly approaches 0 due to the negative exponent. 
+        # 
+        # The factor `-20` controls the rate of decay, making the function highly sensitive to changes in `dist`.
+        #  Larger values for this factor result in a steeper drop-off.
+        # This type of function is commonly used in robotics and reinforcement learning to reward proximity or penalize distance. For example, in a robotic manipulation task, 
+        # `r_close` might represent a reward signal that encourages the robot to minimize the distance to a target object. 
+        # The steep decay ensures that the reward is significant only when the robot is very close to the object, promoting precise movements.
+        
+        ##########################################################################
+        ##########################################################################
         r_lift = (block_pos[2] - self._z_init) / (self._z_success - self._z_init)
         r_lift = np.clip(r_lift, 0.0, 1.0)
         rew = 0.3 * r_close + 0.7 * r_lift
         return rew
     
-    def _is_success(self) -> bool:
+    def _is_success(self) -> bool: #### qui c'è l'algoritmo che determina nella simulazione l'esito success
+        ## NON USA CLASSIFIER DI NESSUN TIPO:
+        # semplicemente controlla se la distanza tra il blocco e il gripper è minore di 0.05 
+        # e se il sollevamento del blocco è maggiore di 0.2
         block_pos = self._data.sensor("block_pos").data
-        tcp_pos = self._data.sensor("ur10/pinch_pos").data
+        tcp_pos = self._data.sensor("2f85/pinch_pos").data
         dist = np.linalg.norm(block_pos - tcp_pos)
         lift = block_pos[2] - self._z_init
         return dist < 0.05 and lift > 0.2
 
 
 if __name__ == "__main__":
-    env = UR10eGymEnv(render_mode="human")
+    env = PandaPickCubeGymEnv(render_mode="human")
     env.reset()
     for i in range(100):
-        env.step(np.random.uniform(-1, 1, 7))
+        env.step(np.random.uniform(-1, 1, 4))
         env.render()
     env.close()

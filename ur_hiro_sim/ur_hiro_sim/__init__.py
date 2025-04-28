@@ -1,4 +1,4 @@
-from franka_sim.mujoco_gym_env import GymRenderingSpec, MujocoGymEnv
+from ur_hiro_sim.mujoco_gym_env import GymRenderingSpec, MujocoGymEnv
 
 __all__ = [
     "MujocoGymEnv",
