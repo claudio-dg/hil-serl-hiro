@@ -32,7 +32,7 @@ class URPickRosEnv(MujocoGymEnv):
         seed: int = 0,
         control_dt: float = 0.02,
         physics_dt: float = 0.002,
-        time_limit: float = 25.0,
+        time_limit: float = 180.0,
         render_spec: GymRenderingSpec = GymRenderingSpec(),
 
         image_obs: bool = True,
@@ -101,11 +101,10 @@ class URPickRosEnv(MujocoGymEnv):
         # FATTO con bridge aggiunto a StateBridge già esistente
         # e aggiornare lo stato dell'environment.        
 
-        self.publish_action(action)
-
         ##### POST INVIO CONTROLLI ROBOT,  checko le observation! 
         # TODO: (da capire questione sincronia affinchè 
         # avvenga la lettura dello stato esatto subito post azione...) ####
+        super().step(action)  # Invia l'azione al robot tramite ROS
 
         done = False  # Determina se l'episodio è terminato
         info = {}  # Informazioni aggiuntive
@@ -280,7 +279,7 @@ class URPickRosEnv(MujocoGymEnv):
 
         
         dist = np.linalg.norm(object_position - tcp_position)
-        print(f" ##### Distance between object and tcp: {dist}")
+        # print(f" ##### Distance between object and tcp: {dist}")
 
         decay_rate = 20 # larger values --> higher sensitivity to dist changes (rew aumenta + velocemente quando fa variazioni piccole vicine al goal finale,
         # e più lentamente negli spostamenti ampi/lontani iniziali)
@@ -292,7 +291,7 @@ class URPickRosEnv(MujocoGymEnv):
         lift_reward = np.clip(lift_reward, 0.0, 1.0) # cappa il valore tra 0-1
 
         total_reward = 0.3 * closeness_reward + 0.7 * lift_reward
-        print(f" \n\n TOT Reward: {total_reward},  \n Closeness REW: {closeness_reward},  \n Lift REW: {lift_reward}")
+        # print(f" \n\n TOT Reward: {total_reward},  \n Closeness REW: {closeness_reward},  \n Lift REW: {lift_reward}")
         return total_reward
         
 
@@ -324,34 +323,34 @@ class URPickRosEnv(MujocoGymEnv):
 def main():
     print("Avvio dell'environment URPickRosEnv con ROS2...")
 
-    # Inizializza l'environment e il nodo ROS
-    ur_env = URPickRosEnv()
+    # # Inizializza l'environment e il nodo ROS
+    # ur_env = URPickRosEnv()
 
-    ur_env.reset()
-    rate = ur_env._ros_node.create_rate(10)
-    # prova_action = np.array([0.5, 0.0, 0.0, 1.0])
-    prova_action = np.array([0.0, 0.0, 0.0, 1.0])
+    # ur_env.reset()
+    # rate = ur_env._ros_node.create_rate(10)
+    # # prova_action = np.array([0.5, 0.0, 0.0, 1.0])
+    # prova_action = np.array([0.0, 0.0, 0.0, 1.0])
 
-    for i in range(10000):
-        # print (ur_env._current_state.gripper_command.data)
-        # if i % 45 == 0:
-        #     prova_action = -prova_action
-        # if i % 250 == 0:
-        #     ur_env.reset()
-        # ur_env.step(prova_action)
+    # for i in range(10000):
+    #     # print (ur_env._current_state.gripper_command.data)
+    #     # if i % 45 == 0:
+    #     #     prova_action = -prova_action
+    #     # if i % 250 == 0:
+    #     #     ur_env.reset()
+    #     # ur_env.step(prova_action)
 
 
-        obs, reward, done, aaa, info = ur_env.step(prova_action)
-        if done:
-            print(f" \n### episode concluded with result: : {info['succeed']}")
-            print(f" \n ################################ \n\n Final observation: {obs}")
-            print(f"Final reward: {reward}")
-            print(f"################################ \n\n")
-            ur_env.reset()
+    #     obs, reward, done, aaa, info = ur_env.step(prova_action)
+    #     if done:
+    #         print(f" \n### episode concluded with result: : {info['succeed']}")
+    #         print(f" \n ################################ \n\n Final observation: {obs}")
+    #         print(f"Final reward: {reward}")
+    #         print(f"################################ \n\n")
+    #         ur_env.reset()
         
-        # ur_env._ros_node.get_logger().info(f"[UR Gym Env] Ricevuto stato MuJoCo Gripper: {ur_env._current_state.gripper_command.data}")
-        rate.sleep()
-    ur_env.close()
+    #     # ur_env._ros_node.get_logger().info(f"[UR Gym Env] Ricevuto stato MuJoCo Gripper: {ur_env._current_state.gripper_command.data}")
+    #     rate.sleep()
+    # ur_env.close()
 
 if __name__ == "__main__":
     main()

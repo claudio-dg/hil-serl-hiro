@@ -1,5 +1,9 @@
-from ur_hiro_sim.envs.panda_pick_gym_env import PandaPickCubeGymEnv
+from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
+
+# __all__ = [
+#     "PandaPickCubeGymEnv",
+# ]
 
 __all__ = [
-    "PandaPickCubeGymEnv",
+    "URPickRosEnv",
 ]

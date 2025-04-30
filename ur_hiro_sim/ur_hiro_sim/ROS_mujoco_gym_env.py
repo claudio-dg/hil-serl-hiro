@@ -58,7 +58,6 @@ class MujocoGymEnv(gym.Env):
         self._ros_node = rclpy.create_node("ros_gym_node")
 
         # Publishers
-        # TODO: writing action in Mujoco
         self._action_publisher = self._ros_node.create_publisher(
             Float32MultiArray,  # Tipo di messaggio
             "gym_ros/robot_action",  # Nome del topic
@@ -89,16 +88,10 @@ class MujocoGymEnv(gym.Env):
         self._spinning_thread = threading.Thread(target=self.spinning_cb)
         self._spinning_thread.start()
 
-    def publish_action(self, action: np.ndarray):
-        """Pubblica l'azione sul topic ROS."""
-        msg = Float32MultiArray()
-        msg.data = action.tolist()  
-        # Converte l'array NumPy in una lista per pubblicarla su ROS
-        self._action_publisher.publish(msg)
-        # self._ros_node.get_logger().info(f"Pubblicata azione: {msg.data}")
 
     def __del__(self):
         """Destructor to clean up the ROS node."""
+        print("\n\n #####################################  GYM MADRE DELETE #####################################")
         self._ros_node.destroy_node()
         rclpy.shutdown()
         self._spinning_thread.join(timeout=1.0) # Investigate how to better handle threads
@@ -127,6 +120,14 @@ class MujocoGymEnv(gym.Env):
         # self.update_from_ros(msg)
     
 
+    def publish_action(self, action: np.ndarray):
+        """Pubblica l'azione sul topic ROS."""
+        msg = Float32MultiArray()
+        msg.data = action.tolist()  
+        self._action_publisher.publish(msg)
+        # self._ros_node.get_logger().info(f"Pubblicata azione: {msg.data}")
+    
+
     def spinning_cb(self):
         while rclpy.ok():
             self._ros_node.get_logger().info("Started spinning base gym node")
@@ -138,8 +139,7 @@ class MujocoGymEnv(gym.Env):
 
     # ------------------- Gym Overrides ------------------- #
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
-        # Son should override this!
-        pass
+        self.publish_action(action)
 
 
     def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
@@ -180,9 +180,12 @@ class MujocoGymEnv(gym.Env):
 
         self._ros_node.get_logger().info(f"\n ######## [ROS] Closing MuJoCo environment")
         # TODO: call the close service
+        rclpy.shutdown()
+        if self._spinning_thread.is_alive():
+            self._spinning_thread.join(timeout=1.0)
 
 
-        pass
+        # pass
     # ----------------------------------------------------- #
 
 
