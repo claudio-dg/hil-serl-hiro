@@ -31,16 +31,6 @@ FLAGS = flags.FLAGS
 # flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 2, "Number of successful demos to collect.")
 
-# start_key = False
-# def on_press(key):
-#     global start_key
-#     try:
-#         if str(key) == 'Key.shift':
-#             start_key = True
-#     except AttributeError:
-#         pass
-
-
 class DemoRecorderNode(Node):
     def __init__(self):
         super().__init__('demo_recorder_node')
@@ -53,10 +43,10 @@ class DemoRecorderNode(Node):
             10
         )
 
-        # Subscriber per il topic 'mujoco_ros/gripper_command'
+        # Subscriber per il topic 'controller_intervention_gripper' che arriva diretto dal joystick
         self.gripper_subscriber = self.create_subscription(
             Float64,
-            'mujoco_ros/gripper_command',
+            'controller_intervention_gripper',
             self.gripper_callback,
             10
         )
@@ -67,6 +57,10 @@ class DemoRecorderNode(Node):
 
         # Lock per garantire accesso sicuro ai dati
         self.data_lock = threading.Lock()
+
+        # Variabile per memorizzare l'ultima azione
+        self.last_action = np.zeros(4)  # Inizializza con un array di zeri       
+        self.identical_action_count = 0  # conta n di ripetizioni della stessa azione
 
     def offset_callback(self, msg):
         """Callback per il topic 'controller_intervention_offset'."""
@@ -89,10 +83,32 @@ class DemoRecorderNode(Node):
             action[1] = self.offset_data.y
             action[2] = self.offset_data.z
             action[3] = self.gripper_data.data
-            self.get_logger().info(f"Action: {action}")
+
+             # Controlla se i primi tre elementi dell'azione sono identici alla precedente
+            if np.array_equal(action[:3], self.last_action[:3]):
+                # Incrementa il contatore per azioni identiche
+                self.identical_action_count += 1
+            else:
+                # Resetta il contatore se l'azione è diversa
+                self.identical_action_count = 0
+
+            # Azzerare i primi tre elementi solo se l'azione è identica per 5 step consecutivi
+            if self.identical_action_count >= 5:
+                action[:3] = np.zeros(3)
+            else:
+                # Aggiorna i primi tre elementi dell'ultima azione
+                self.last_action[:3] = action[:3]
+
+            # Mantieni il valore precedente del gripper se non ci sono nuovi comandi (ridondante secondo me)
+            # if action[3] == 0.0:  # Supponendo che 0.0 sia il valore di default per il gripper
+            #     action[3] = self.last_action[3]
+            # else:
+            #     # Aggiorna il valore del gripper nell'ultima azione
+            #     self.last_action[3] = action[3]
+
+            self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
         return action
 
-################### METTERE AZIONE jiystick tramite subscriber qua
 def main(_):
 
     # Inizializza ROS2
@@ -141,13 +157,14 @@ def main(_):
         # actions = np.zeros(env.action_space.sample().shape) 
 
         actions = ros_node.get_joystick_action()
-        print("ACTIONS = ", actions)
-        # se funza vedere come gestire poi alternanza con altra action in futuro (qui non serve perchè unico input è joystick)
-        # non funziona.. perchè dal my_open_pkl.py vedo che actions sempre = 0,0,0??
-        # OLTRE A DARE 0,0,0 inspiegabilmente, sto print invece mostra altro problema: in assenza di modifiche prende sempre l'ulitmo comando
-        # quindi anzichè passare ad action = 0,0,0, ripete al'ifinito l'ultimo ricevuto il che è sbagliato perchè
+        # print("ACTIONS = ", actions)
+        # FUNZIONA : con openpkl sembra vedere un azione correttamente, MA:
+        # in assenza di modifiche prende sempre l'ultimo comando
+        # quindi anzichè passare ad action = 0,0,0,0 ripete al'ifinito l'ultimo ricevuto il che è sbagliato perchè
         # robot lo interpreterà come (ok devo continuare a muovermi in quella direzione)
         # TODO. fix 
+
+        #### (*) per il secondo problema secondo ci vuole quel "if intervened" aggiorna action (che altrimenti va resettata a np.zeros se non c'è intervened)
         
         next_obs, rew, done, truncated, info = env.step(actions)
         # viewer.sync()
@@ -156,15 +173,16 @@ def main(_):
         #     actions = info["intervene_action"]
         transition = copy.deepcopy(
             dict(
-                observations=obs, ## questo dovrebbe riempirsi correttamente, MA
-                actions=actions, ### secondo me nel mio caso NON metti inserisco MAI azioni QUA!! mette sepre np.zeros
-                next_observations=next_obs,
-                rewards=rew,
-                masks=1.0 - done,
-                dones=done,
-                infos=info,
-                )
+            observations=obs, ## questo dovrebbe riempirsi correttamente, MA
+            actions=actions, ### secondo me nel mio caso NON metti inserisco MAI azioni QUA!! mette sepre np.zeros
+            next_observations=next_obs,
+            rewards=rew,
+            masks=1.0 - done,
+            dones=done,
+            infos=info,
+            )
         )
+        print(f" *** Transition actions: {transition['actions']}")
         trajectory.append(transition)
                 
         pbar.set_description(f"Return: {returns}")
