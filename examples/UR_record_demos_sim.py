@@ -15,14 +15,18 @@ from std_msgs.msg import Float64
 import threading
 ###########
 
-# from experiments.mappings import CONFIG_MAPPING
-# import mujoco.viewer
-from pynput import keyboard
-
 from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
 # fare : export PYTHONPATH=$PYTHONPATH:~/ros/catkin_ws/src/hil-serl/ur_hiro_sim
 #  & anche: export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/ur_hiro_sim/ur_hiro_sim/envs
 # il secondo serve per wait4message
+
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
+# from serl_launcher.wrappers.serl_obs_wrappers import flatten_observations
+# import gymnasium as gym
+from franka_env.envs.relative_env import RelativeFrame
+
+
+
 import os
 print("PYTHONPATH:", os.environ.get("PYTHONPATH"))
 
@@ -30,6 +34,7 @@ print("PYTHONPATH:", os.environ.get("PYTHONPATH"))
 FLAGS = flags.FLAGS
 # flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
 flags.DEFINE_integer("successes_needed", 2, "Number of successful demos to collect.")
+proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
 class DemoRecorderNode(Node):
     def __init__(self):
@@ -106,84 +111,87 @@ class DemoRecorderNode(Node):
             #     # Aggiorna il valore del gripper nell'ultima azione
             #     self.last_action[3] = action[3]
 
-            self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
+            # self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
         return action
 
 def main(_):
 
-    # Inizializza ROS2
     rclpy.init()
-    # Crea il nodo ROS
+    # Create ROS Node
     ros_node = DemoRecorderNode()
-    # Avvia il nodo ROS in un thread separato
+    # Start Ros Node on separate thread 
     ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
     ros_thread.start()
 
-    
-    # global start_key
-    # listener = keyboard.Listener(
-    #     on_press=on_press)
-    # listener.start()
-    # assert FLAGS.exp_name in CONFIG_MAPPING, 'Experiment folder not found.'
-    # config = CONFIG_MAPPING[FLAGS.exp_name]()
-
-    # env = config.get_environment(fake_env=False, save_video=False, classifier=False)
 
     env = URPickRosEnv() 
-    ######################################################################################################
-    # nel mo caso non avendo (X ORA) dei wrapper, prendo direttamente l'env senza passare per il config
-    # che appunto è quello che mappa l'env base della task per avvolgerlo con vari wrapper 
-    ######################################################################################################
+    env = RelativeFrame(env) ####### wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
+    env = SERLObsWrapper(env, proprio_keys=proprio_keys) ## wrapper per rendere flattend le observation state
+    #############################################
+    # tcp_ft ? NOTA SERLOBSWRAP-> se uso questo però nelle OBS
+    # poi ho solo info propriocettive del robot + le immagini, se voglio anche altre info devo modificare
+    #  serl_obs_wrapper aggiungendo gli altri campi come fa lui con ** obs_space[images!]
+    # per ora provo come viene poi in base a cosa serve modifico!
+
+    # NOTA: credo poi li prenda in **ordine alfabetico**, 
+    # perchè in quello flatten mette per primo
+    #  il gripper_pose poi tcpPose e tcpVel
+    ################################################
+    # proprio_space = gym.spaces.Dict(
+    #     {key: env.observation_space["state"][key] for key in proprio_keys}
+    # )
+    # print("Proprio Space:", proprio_space)
 
     obs, info = env.reset()
-    print("Reset done")
+    print("Osservazione restituita da env.reset():", obs)
+
+    # obs = flatten_observations(obs, proprio_space, proprio_keys) # NO perchè prende obs= null all'inizio e crasha
+
     transitions = []
     success_count = 0
     success_needed = FLAGS.successes_needed
     pbar = tqdm(total=success_needed)
     trajectory = []
     returns = 0
+    step_counter = 0  # Contatore per gli step (per  registrare una transition (step) ogni tot (100))
     
-    # print("Press shift to start recording.\nIf your controller is not working check controller_type (default is xbox) is configured in examples/experiments/pick_cube_sim/config.py")
-    print(" \n\n\n ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ \n\n\n")
-    # rate = env._ros_node.create_rate(10)
-
-    # with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
-    # while viewer.is_running():
     while success_count < success_needed:
     
-        # print(" \n\n\n XXX \n\n\n")
-        # if start_key:
-        # actions = np.zeros(env.action_space.sample().shape) 
-
         actions = ros_node.get_joystick_action()
         # print("ACTIONS = ", actions)
-        # FUNZIONA : con openpkl sembra vedere un azione correttamente, MA:
-        # in assenza di modifiche prende sempre l'ultimo comando
-        # quindi anzichè passare ad action = 0,0,0,0 ripete al'ifinito l'ultimo ricevuto il che è sbagliato perchè
-        # robot lo interpreterà come (ok devo continuare a muovermi in quella direzione)
-        # TODO. fix 
 
-        #### (*) per il secondo problema secondo ci vuole quel "if intervened" aggiorna action (che altrimenti va resettata a np.zeros se non c'è intervened)
-        
         next_obs, rew, done, truncated, info = env.step(actions)
-        # viewer.sync()
+        # print("Osservazione restituita da env.step():", next_obs)
+
+        #####################
+         # Trasforma l'osservazione iniziale usando il metodo di serl_obs_wrapper.py
+
+        # next_obs = flatten_observations(next_obs, proprio_space, proprio_keys)
+        # print("Osservazione appiattita:", next_obs)
+        
+        #####################
+
+
         returns += rew
-        # if "intervene_action" in info:
-        #     actions = info["intervene_action"]
-        transition = copy.deepcopy(
-            dict(
-            observations=obs, ## questo dovrebbe riempirsi correttamente, MA
-            actions=actions, ### secondo me nel mio caso NON metti inserisco MAI azioni QUA!! mette sepre np.zeros
-            next_observations=next_obs,
-            rewards=rew,
-            masks=1.0 - done,
-            dones=done,
-            infos=info,
+        step_counter += 1  # Incrementa il contatore degli step
+
+        # Registra la transizione solo ogni 100 step
+        if step_counter % 200 == 0:
+            transition = copy.deepcopy(
+                dict(
+                    observations=obs,
+                    actions=actions,
+                    next_observations=next_obs,
+                    rewards=rew,
+                    masks=1.0 - done,
+                    dones=done,
+                    infos=info,
+                )
             )
-        )
-        print(f" *** Transition actions: {transition['actions']}")
-        trajectory.append(transition)
+            print(f" *** Transition actions: {transition['actions']}")
+            print(f" *** Transition OBS STATE: {transition['observations']['state']}")
+            # print(f" *** Transition OBS: {transition['observations']}")
+            trajectory.append(transition)
                 
         pbar.set_description(f"Return: {returns}")
 
@@ -200,11 +208,12 @@ def main(_):
             trajectory = []
             returns = 0           
             obs, info = env.reset()
-        # if success_count >= success_needed:
-        #     print("\n\n aaaaaaaaaaaaaaaaaa")
-        #     break
+            #####################
+            # obs = flatten_observations(obs, proprio_space, proprio_keys)
+            #####################
+
             
-    print("bbbbbbbbb     n. di successi raggiunti =   ", success_count)
+    print("### RECORDING COMPLETED ### \n    n. di successi raggiunti =   ", success_count)
 
     if not os.path.exists("./demo_data"):
         os.makedirs("./demo_data")

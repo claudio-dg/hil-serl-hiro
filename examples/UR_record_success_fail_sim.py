@@ -7,8 +7,6 @@ import datetime
 from absl import app, flags
 from pynput import keyboard
 
-# from experiments.mappings import CONFIG_MAPPING
-
 # import mujoco.viewer
 
 ###########
@@ -17,9 +15,17 @@ from rclpy.node import Node
 from geometry_msgs.msg import Vector3
 from std_msgs.msg import Float64
 import threading
-from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
 ###########
 
+from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
+# fare : export PYTHONPATH=$PYTHONPATH:~/ros/catkin_ws/src/hil-serl/ur_hiro_sim
+#  & anche: export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/ur_hiro_sim/ur_hiro_sim/envs
+# il secondo serve per wait4message
+
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
+# from serl_launcher.wrappers.serl_obs_wrappers import flatten_observations
+# import gymnasium as gym
+from franka_env.envs.relative_env import RelativeFrame
 
 class RecorderNode(Node):
     def __init__(self):
@@ -94,7 +100,8 @@ class RecorderNode(Node):
 FLAGS = flags.FLAGS
 # flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
 # flags.DEFINE_integer("successes_needed", 200, "Number of successful transistions to collect.")
-flags.DEFINE_integer("successes_needed", 30, "Number of successful transistions to collect.")
+flags.DEFINE_integer("successes_needed", 1, "Number of successful transistions to collect.")
+proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
 
 success_key = False
@@ -115,15 +122,23 @@ def main(_):
         on_press=on_press)
     listener.start()
 
-    # Inizializza ROS2
     rclpy.init()
-    # Crea il nodo ROS
+    # Create ROS Node
     ros_node = RecorderNode()
-    # Avvia il nodo ROS in un thread separato
+    # Start Ros Node on separate thread 
     ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
     ros_thread.start()
 
-    env = URPickRosEnv() 
+    env = URPickRosEnv()
+    env = RelativeFrame(env) ####### wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
+    env = SERLObsWrapper(env, proprio_keys=proprio_keys) ## wrapper per rendere flattend le observation state
+    #############################################
+    # VEDI NOTE UR_RECORD_DEMOS_SIM
+    ################################################
+    # proprio_space = gym.spaces.Dict(
+    #     {key: env.observation_space["state"][key] for key in proprio_keys}
+    # )
+    # print("Proprio Space:", proprio_space)
 
     obs, _ = env.reset()
     successes = []
@@ -132,18 +147,23 @@ def main(_):
     pbar = tqdm(total=success_needed)
     
     print("press enter to record a successful transition.\n")
-    # with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+
+    failure_count = 0  # Contatore per le transizioni di failure (MIO TEST ma sarebbe meglio avere n. di steps più sensato)
+
     while len(successes) <= success_needed:            
         # if start_key:
-        # actions = np.zeros(env.action_space.sample().shape) 
         actions = ros_node.get_joystick_action()
 
         next_obs, rew, done, truncated, info = env.step(actions)
-        # viewer.sync()
-        # if "intervene_action" in info:
-        #     actions = info["intervene_action"]
+
+        #####################
+         # Trasforma l'osservazione iniziale usando il metodo di serl_obs_wrapper.py
+
+        # next_obs = flatten_observations(next_obs, proprio_space, proprio_keys)
+        # print("Osservazione appiattita:", next_obs)
         
-        # TODO: continuare da qua
+        #####################
+        
         transition = copy.deepcopy(
             dict(
                 observations=obs,
@@ -175,11 +195,20 @@ def main(_):
             # 1) capire come diminuire il numero di STEP effettuati
             # 
             # 2) implementare logica che ad esempio salva solo un failures ogni tot (100?)
+            
+            # failures.append(transition)
         
-            failures.append(transition)
+            failure_count += 1 #MIO TEST
+
+            # Salva solo 1 failure ogni 100 
+            if failure_count % 25 == 0:
+                failures.append(transition)
 
         if done or truncated:
             obs, _ = env.reset()
+            #####################
+            # obs = flatten_observations(obs, proprio_space, proprio_keys)
+            #####################
         if len(successes) >= success_needed:
             break
 
