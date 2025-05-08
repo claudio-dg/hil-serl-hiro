@@ -30,7 +30,7 @@ class URPickRosEnv(MujocoGymEnv):
         self,
         action_scale: np.ndarray = np.asarray([0.1, 1]),
         seed: int = 0,
-        control_dt: float = 0.02,
+        control_dt: float = 0.1, #orig: 0.02, --> mentre quello di pick_cube_sim ha 0,1 provo a metterlo ache io
         physics_dt: float = 0.002,
         time_limit: float = 180.0,
         render_spec: GymRenderingSpec = GymRenderingSpec(),
@@ -54,7 +54,7 @@ class URPickRosEnv(MujocoGymEnv):
             {
                 "tcp_pose": spaces.Box(-np.inf, np.inf, shape=(7,), dtype=np.float32),
                 "tcp_velocity": spaces.Box(-np.inf, np.inf, shape=(6,), dtype=np.float32),
-                "gripper_command": spaces.Box(-1, 1, shape=(1,), dtype=np.float32),
+                "gripper_pose": spaces.Box(-1, 1, shape=(1,), dtype=np.float32),
             }
         )
 
@@ -128,7 +128,18 @@ class URPickRosEnv(MujocoGymEnv):
             "elapsed_time": elapsed_time,
         }
 
+        # time.sleep(0.05) # ok meno step e transizioni ma funziona troppo peggio...
         return obs, reward, done, False, info
+
+    def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+        """Reset dell'environment."""
+        ###### ADD return values to return starting OBS!! #####
+        super().reset(seed=seed, **kwargs)
+        obs = self.compute_observation()
+
+        return obs, {}
+    
+
 
     def compute_observation(self) -> dict:
         obs = {}
@@ -193,11 +204,16 @@ class URPickRosEnv(MujocoGymEnv):
 
         # ------ images ------
         # hard code the known number of cameras 
-        # if self.image_obs: ###############commenta per togliere camera
-        #     obs["images"] = {} ###############commenta per togliere camera
-        #     obs["images"]["right"] = ros_image_to_numpy(current_state.camera_images[0]) ###############commenta per togliere camera
-           
-            # obs["images"]["left"] = ros_image_to_numpy(current_state.camera_images[1])
+        if self.image_obs: ###############commenta per togliere camera
+            obs["images"] = {} ###############commenta per togliere camera
+            # obs["images"]["right"] = ros_image_to_numpy(current_state.camera_images[0]) ###############commenta per togliere camera
+
+            # Aggiungi una dimensione batch (per avere 1,128,128,3) per reti neurali
+            right_image = ros_image_to_numpy(current_state.camera_images[0]) ###############commenta per togliere camera
+            obs["images"]["right"] = np.expand_dims(right_image, axis=0)  # Da (128, 128, 3) a (1, 128, 128, 3)
+        
+             # left_image = ros_image_to_numpy(current_state.camera_images[1])
+            # obs["images"]["left"] = np.expand_dims(left_image, axis=0)
 
             # DEBUG TEST
             # right_image = ros_image_to_numpy(current_state.camera_images[0])

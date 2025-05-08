@@ -16,8 +16,8 @@ import time
 from wait_for_message import wait_for_message
 @dataclass(frozen=True)
 class GymRenderingSpec:
-    height: int = 240 #128
-    width: int = 320 #128
+    height: int = 128 # 240 #128
+    width: int = 128 # 320 #128
     camera_id: str | int = -1
     mode: Literal["rgb_array", "human"] = "rgb_array"
 
@@ -168,7 +168,7 @@ class MujocoGymEnv(gym.Env):
 
         # if self._current_state is not None:
         #     print (self._current_state.gripper_command.data)
-        return {}, {}
+        # return {}, {}
 
 
     def render(self):
