@@ -7,8 +7,6 @@ import rclpy
 from cv_bridge import CvBridge
 import numpy as np
 import cv2
-
-
 import time  
 
 #  fare:
@@ -42,10 +40,9 @@ class URPickRosEnv(MujocoGymEnv):
             control_dt=control_dt,
             physics_dt=physics_dt,
             time_limit=time_limit,
-            render_spec=render_spec, ### 
+            render_spec=render_spec,  
         )
         self._action_scale = action_scale
-
         self.camera_id = (0, 1)
         self.image_obs = image_obs
 
@@ -96,19 +93,13 @@ class URPickRosEnv(MujocoGymEnv):
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
         """Esegue uno step nell'environment."""
 
-
-        # implementata la logica per inviare comandi al robot tramite ROS 
-        # FATTO con bridge aggiunto a StateBridge già esistente
-        # e aggiornare lo stato dell'environment.        
-
-        ##### POST INVIO CONTROLLI ROBOT,  checko le observation! 
         # TODO: (da capire questione sincronia affinchè 
-        # avvenga la lettura dello stato esatto subito post azione...) ####
-        super().step(action)  # Invia l'azione al robot tramite ROS
+        # avvenga la lettura dello stato esatto subito post azione...)
 
-        done = False  # Determina se l'episodio è terminato
-        info = {}  # Informazioni aggiuntive
-    
+        super().step(action)  # Send action to robot through ROS
+
+        done = False  
+        info = {}
         obs = self.compute_observation()
         reward = self._compute_reward()
         success = self._is_success()
@@ -121,36 +112,34 @@ class URPickRosEnv(MujocoGymEnv):
         # establish if the episode is over
         done = time_exceeded or success
 
-        
         info = {
             "succeed": success,
             "time_exceeded": time_exceeded,
             "elapsed_time": elapsed_time,
         }
 
-        # time.sleep(0.05) # ok meno step e transizioni ma funziona troppo peggio...
         return obs, reward, done, False, info
 
     def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         """Reset dell'environment."""
-        ###### ADD return values to return starting OBS!! #####
         super().reset(seed=seed, **kwargs)
         obs = self.compute_observation()
 
         return obs, {}
     
-
-
     def compute_observation(self) -> dict:
+        """ read info from mujoco (through Ros Topic) and reshape state msgs to fill obs """  
+
         obs = {}
         obs["state"] = {}
 
-        # Legge lo stato corrente in modo thread-safe
+        # Read current_state in a thread-safe way
         with self._state_mutex:
             current_state = self._current_state
         
-        #### read info from mujoco (through Ros Topic) and reshape state msgs ####
+
         # ------ tcp pose ------
+
         tcp_position = np.array([current_state.tcp_pose.pose.position.x,
                                  current_state.tcp_pose.pose.position.y,
                                  current_state.tcp_pose.pose.position.z])
@@ -182,7 +171,7 @@ class URPickRosEnv(MujocoGymEnv):
         obs["state"]["tcp_vel"] = tcp_velocity
 
 
-        # ------ tcp force/torque  (utile nel caso in cui debba basare reward su forza, es: plug in hole task direi) ------
+        # ------ tcp force/torque  (utile nel caso in cui debba basare reward su forza, es: peg in hole task direi) ------
 
         tcp_force = np.array([current_state.tcp_force_torque.wrench.force.x,
                               current_state.tcp_force_torque.wrench.force.y,
@@ -204,27 +193,12 @@ class URPickRosEnv(MujocoGymEnv):
 
         # ------ images ------
         # hard code the known number of cameras 
-        if self.image_obs: ###############commenta per togliere camera
-            obs["images"] = {} ###############commenta per togliere camera
-            # obs["images"]["right"] = ros_image_to_numpy(current_state.camera_images[0]) ###############commenta per togliere camera
+        if self.image_obs: 
+            obs["images"] = {}
+            obs["images"]["right"] = ros_image_to_numpy(current_state.camera_images[0])
 
-            # Aggiungi una dimensione batch (per avere 1,128,128,3) per reti neurali
-            right_image = ros_image_to_numpy(current_state.camera_images[0]) ###############commenta per togliere camera
-            obs["images"]["right"] = np.expand_dims(right_image, axis=0)  # Da (128, 128, 3) a (1, 128, 128, 3)
-        
-             # left_image = ros_image_to_numpy(current_state.camera_images[1])
+            # left_image = ros_image_to_numpy(current_state.camera_images[1])
             # obs["images"]["left"] = np.expand_dims(left_image, axis=0)
-
-            # DEBUG TEST
-            # right_image = ros_image_to_numpy(current_state.camera_images[0])
-            # print(f" *-*-*- Right image shape: {right_image.shape}, dtype: {right_image.dtype}")
-            # print(right_image) # stampa valori pixels
-
-            # cv2.imshow("Right Camera", obs["images"]["right"])
-            # # cv2.imshow("Left Camera", obs["images"]["left"])
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-
 
         # ------ object pose : this case -> 1 single obj ------
 
@@ -277,12 +251,13 @@ class URPickRosEnv(MujocoGymEnv):
         ##########################################################################
         ##########################################################################
 
-         # Legge lo stato corrente in modo thread-safe
+        # Read current_state in a thread-safe way
         with self._state_mutex:
             current_state = self._current_state
 
-        obj_Z_init = 0.3 # hard coddo, altrimenti dovrei leggere pose iniziale nel reset, ma avendo reset nel madre è inutilmente complesso.. hard coddo e basta
-        obj_Z_desired = obj_Z_init + 0.2 # hard coddo altezza desiderata = incremento di  0,2
+        obj_Z_init = 0.3 # hard code
+        obj_Z_desired = obj_Z_init + 0.2 # hard code desired height = increasing of 0,2
+
         object_position = np.array([current_state.obj_poses[0].pose.position.x,
                                     current_state.obj_poses[0].pose.position.y,
                                     current_state.obj_poses[0].pose.position.z])
@@ -299,12 +274,12 @@ class URPickRosEnv(MujocoGymEnv):
 
         decay_rate = 20 # larger values --> higher sensitivity to dist changes (rew aumenta + velocemente quando fa variazioni piccole vicine al goal finale,
         # e più lentamente negli spostamenti ampi/lontani iniziali)
-        target_distance = 0.0075 #0.141 # distanza minima desiderata alla quale raggiungere rew = 1
+        target_distance = 0.0075 #0.141 # minimum desired distance at which rew = 1
         closeness_reward = np.exp(-decay_rate * (dist - target_distance))
-        closeness_reward = np.clip(closeness_reward, 0.0, 1.0) # cappo il valore tra 0-1 per evitare che distanze inferiori a0.15 diano rew>1
+        closeness_reward = np.clip(closeness_reward, 0.0, 1.0)  # cap between 0-1 to avoid that distances lower than 0,15 gave rew > 1
 
         lift_reward = (object_position[2]- obj_Z_init) / (obj_Z_desired - obj_Z_init)
-        lift_reward = np.clip(lift_reward, 0.0, 1.0) # cappa il valore tra 0-1
+        lift_reward = np.clip(lift_reward, 0.0, 1.0) # cap between 0-1
 
         total_reward = 0.3 * closeness_reward + 0.7 * lift_reward
         # print(f" \n\n TOT Reward: {total_reward},  \n Closeness REW: {closeness_reward},  \n Lift REW: {lift_reward}")
@@ -312,13 +287,14 @@ class URPickRosEnv(MujocoGymEnv):
         
 
     
-    def _is_success(self) -> bool: #### qui c'è l'algoritmo che determina nella simulazione l'esito success
+    def _is_success(self) -> bool: 
 
         # Legge lo stato corrente in modo thread-safe
         with self._state_mutex:
             current_state = self._current_state
 
-        obj_Z_init = 0.3 # hard coddo, altrimenti dovrei leggere pose iniziale nel reset, ma avendo reset nel madre è inutilmente complesso.. hard coddo e basta
+        obj_Z_init = 0.3# hard code
+
         object_position = np.array([current_state.obj_poses[0].pose.position.x,
                                     current_state.obj_poses[0].pose.position.y,
                                     current_state.obj_poses[0].pose.position.z])
@@ -338,35 +314,6 @@ class URPickRosEnv(MujocoGymEnv):
 
 def main():
     print("Avvio dell'environment URPickRosEnv con ROS2...")
-
-    # # Inizializza l'environment e il nodo ROS
-    # ur_env = URPickRosEnv()
-
-    # ur_env.reset()
-    # rate = ur_env._ros_node.create_rate(10)
-    # # prova_action = np.array([0.5, 0.0, 0.0, 1.0])
-    # prova_action = np.array([0.0, 0.0, 0.0, 1.0])
-
-    # for i in range(10000):
-    #     # print (ur_env._current_state.gripper_command.data)
-    #     # if i % 45 == 0:
-    #     #     prova_action = -prova_action
-    #     # if i % 250 == 0:
-    #     #     ur_env.reset()
-    #     # ur_env.step(prova_action)
-
-
-    #     obs, reward, done, aaa, info = ur_env.step(prova_action)
-    #     if done:
-    #         print(f" \n### episode concluded with result: : {info['succeed']}")
-    #         print(f" \n ################################ \n\n Final observation: {obs}")
-    #         print(f"Final reward: {reward}")
-    #         print(f"################################ \n\n")
-    #         ur_env.reset()
-        
-    #     # ur_env._ros_node.get_logger().info(f"[UR Gym Env] Ricevuto stato MuJoCo Gripper: {ur_env._current_state.gripper_command.data}")
-    #     rate.sleep()
-    # ur_env.close()
 
 if __name__ == "__main__":
     main()
