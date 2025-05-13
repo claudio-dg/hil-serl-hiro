@@ -237,6 +237,36 @@ class GripperPenaltyWrapper(gym.RewardWrapper):
         info["grasp_penalty"] = penalty
         self.last_gripper_pos = observation["state"][0, 0]
         return observation, reward, terminated, truncated, info
+    
+class UR_GripperPenaltyWrapper(gym.RewardWrapper):
+    def __init__(self, env, penalty=0.1):
+        super().__init__(env)
+        assert env.action_space.shape == (4,)
+        self.penalty = penalty
+        self.last_gripper_pos = None
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)# mentre azione è 0 o 239
+        self.last_gripper_pos = obs["state"][0, 0] # questa è 0 o 1
+        return obs, info
+
+    def reward(self, reward: float, action) -> float:
+        if (action[3] < 0.1 and self.last_gripper_pos > 0.95) or (
+            action[3] > 238.9 and self.last_gripper_pos < 0.95
+        ): 
+            return reward - self.penalty, self.penalty
+        else:
+            return reward, 0.0
+
+    def step(self, action):
+        """Modifies the :attr:`env` :meth:`step` reward using :meth:`self.reward`."""
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        if "intervene_action" in info:
+            action = info["intervene_action"]
+        reward, penalty = self.reward(reward, action)
+        info["grasp_penalty"] = penalty
+        self.last_gripper_pos = observation["state"][0, 0]
+        return observation, reward, terminated, truncated, info
 
 class DualGripperPenaltyWrapper(gym.RewardWrapper):
     def __init__(self, env, penalty=0.1):
