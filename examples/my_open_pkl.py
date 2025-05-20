@@ -11,19 +11,14 @@ import matplotlib.pyplot as plt
 # file_path = "demo_data/pick_cube_sim_30_demos_2024-12-10_16-39-49.pkl"  #  1782 elementi -Z questo è 30 DEMOS !
 
 # file_path = "demo_data/A_my_UR_TEST_2_demos_first_completed.pkl" # 31316 elementi (?????)
-# file_path = "demo_data/A_my_UR_TEST_2_demos_second_completed.pkl" # 8781 elementi (?????)
-
-# ok che ci ho messo un minuto e mezzo a fare una sim perchè andava lenta, ma non son troppi?
-#  anche perchè io ho fatto solo 2 Demo e non 20.. 
-# secondo me qualche wrapper (che io non ho) cambia qualcosa
 
 
-# file_path = "demo_data/A_my_UR_TEST_2_demos_2025-05-05_fixed_Actions.pkl" # 
-# file_path = "demo_data/A_my_UR_TEST_2_demos_2025-05-05_fixedActions_e_consecutiveactFeature.pkl" # 
-# file_path = "demo_data/A_my_UR_TEST_2_demos_2025-05-05_16-40-30.pkl" # 
 
-file_path = "demo_data/A_my_UR_TEST_2_demos_1ogni100_2025-05-08_13-57-08.pkl" # (HA IMMAGINI) 129 elementi per 2 tentativi
-
+# file_path = "demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl"  # 86 elementi ## ------------- ##
+# prima demo va da 0-13 
+# seconda demo va da 14 -23
+## nota --> in realtà son tipo 18 demo perchè bug per cui a volte quando termina episodio salva due volte di fila 
+#  RIFARE, PERCHÈ IN REALTÀ IL TEST CON 30 DEMOS HA CIRCA 1800 TRANS, QUINDI RIFARE AUMENTANDO FREWUNZA CAMPIONAMENTO PER AVERE CIRCA 2K
 #################################################################################################################
 ################################ classifier data from UR_rec_success_fail_sim.py ################################
 
@@ -32,13 +27,22 @@ file_path = "demo_data/A_my_UR_TEST_2_demos_1ogni100_2025-05-08_13-57-08.pkl" # 
 # file_path = "classifier_data/A_my_UR_1_success_images_2025-05-06_14-45-52.pkl"  
 # file_path = "classifier_data/A_my_UR_30_success_Con_IMMAGINI_2025-05-07_11-00-17.pkl"  
 
+file_path = "classifier_data/succ/AAA_my_UR_200_success_images_2025-05-13_15-49-59.pkl" # giusto 200 elementi
+# 0-24 ok
+# 25-49 ok
+
 # ****** failures ******
 # file_path = "classifier_data/A_my_UR_failure_images_2025-05-06_14-45-52.pkl" # 1678 elementi
 # file_path = "classifier_data/A_my_UR_failure_images_1ogni100failures.pkl" # 10 elementi
 # file_path = "classifier_data/A_my_UR_failure_Con_IMMAGINI_2025-05-07_11-00-17.pkl" # 28 elementi
-file_path = "classifier_data/A_my_UR_failure_images_2025-05-08_17-05-05.pkl" # 10 elementi
+# file_path = "classifier_data/A_my_UR_failure_images_2025-05-08_17-05-05.pkl" # 10 elementi
+
+# file_path = "classifier_data/fails/AAA_my_UR_failure_images_2025-05-13_15-49-59.pkl" # 107 elementi, non abbastanza (suggeriscino 2x/3x rispetto ai succ)
+# PROVO A PRENDERE I FAILURES IN TEST SEPARATO.. forse ha anche senso csoì non ho  successi registrati come failures
+
+# file_path = "classifier_data/fails/AAA_my_UR_failure_images_2025-05-13_16-17-23.pkl" # 651 elementi,  test seprato da qui prendo solo failures ## ------------- ##
 # element_to_pick = 31300
-element_to_pick = 5
+element_to_pick = 0
 
 # Funzione per caricare il file .pkl
 def carica_pkl(file_path):
@@ -65,8 +69,11 @@ def show_pkl_content(file_path):
                 if isinstance(value, np.ndarray):
                     print(f"       Forma = {value.shape}")
                     print(f"       Valori iniziali: {value.flatten()[:5]}")  # Mostra i primi 5 valori
+    # Mostra il valore del reward
+            if 'rewards' in data[element_to_pick]:
+                print(f"\n ## Valore del reward associato alla transizione: {data[element_to_pick]['rewards']}")
     elif isinstance(data, dict):
-        print("Chiavi del dizionario:", data.keys())
+        print("\n Chiavi del dizionario:", data.keys())
     else:
         print("Contenuto:", data)
 
@@ -111,7 +118,7 @@ def show_flattened_and_withBatchSize_UR_pkl_images(file_path):
     data = carica_pkl(file_path)
 
     # Esplora la struttura dei data
-    print("Chiavi principali del dizionario:", data[0].keys())
+    print(" \n\n Chiavi principali del dizionario:", data[0].keys())
     print("Chiavi di 'observations':", data[0]['observations'].keys())
 
 
