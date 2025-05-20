@@ -47,6 +47,7 @@ from franka_env.envs.wrappers import (
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
 
+recorded_demos_path = "demo_data/Z_final_my_30_demos_2025-05-20_11-54-40.pkl" #demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl
 
 FLAGS = flags.FLAGS
 
@@ -55,7 +56,7 @@ flags.DEFINE_integer("seed", 42, "Random seed.")
 flags.DEFINE_boolean("learner", False, "Whether this is a learner.")
 flags.DEFINE_boolean("actor", False, "Whether this is an actor.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
-flags.DEFINE_multi_string("demo_path", "demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl", "Path to the demo data.")
+flags.DEFINE_multi_string("demo_path", recorded_demos_path, "Path to the demo data.")
 flags.DEFINE_string("checkpoint_path", "AaA_prova_Trainersave_ckpt_Buffer", "Path to save checkpoints.")
 flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint.")
 flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
