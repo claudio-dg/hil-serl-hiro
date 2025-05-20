@@ -29,97 +29,102 @@ from franka_env.envs.wrappers import (
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
-class RecorderNode(Node):
-    def __init__(self):
-        super().__init__('succ_fail_recorder_node')
+#########################################################
+from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
+import time
+#########################################################
+
+# class RecorderNode(Node):
+#     def __init__(self):
+#         super().__init__('succ_fail_recorder_node')
 
 
-        # Reset service to reset gripper commands externally (GUI) coherently to gym's reset
-        # TODO: implement service call in complex.cc to reset from GUI
-        self.create_service(Trigger, 'reset_recorder', self.reset_callback)
+#         # Reset service to reset gripper commands externally (GUI) coherently to gym's reset
+#         # TODO: implement service call in complex.cc to reset from GUI
+#         self.create_service(Trigger, 'reset_recorder', self.reset_callback)
 
-        # Subscriber to 'controller_intervention_offset' topic to receive joystick offsets
-        self.offset_subscriber = self.create_subscription(
-            Vector3,
-            'controller_intervention_offset',
-            self.offset_callback,
-            10
-        )
+#         # Subscriber to 'controller_intervention_offset' topic to receive joystick offsets
+#         self.offset_subscriber = self.create_subscription(
+#             Vector3,
+#             'controller_intervention_offset',
+#             self.offset_callback,
+#             10
+#         )
 
-        # Subscriber to 'controller_intervention_gripper' topic to receive joystick gripper commands
-        self.gripper_subscriber = self.create_subscription(
-            Float64,
-            'controller_intervention_gripper',
-            self.gripper_callback,
-            10
-        )
+#         # Subscriber to 'controller_intervention_gripper' topic to receive joystick gripper commands
+#         self.gripper_subscriber = self.create_subscription(
+#             Float64,
+#             'controller_intervention_gripper',
+#             self.gripper_callback,
+#             10
+#         )
 
-        # variables to store received inputs  
-        self.offset_data = Vector3()
-        self.gripper_data = Float64()
-        self.last_action = np.zeros(4)       
-        self.identical_action_count = 0  # count of action repetitions due to synchronization
+#         # variables to store received inputs  
+#         self.offset_data = Vector3()
+#         self.gripper_data = Float64()
+#         self.last_action = np.zeros(4)       
+#         self.identical_action_count = 0  # count of action repetitions due to synchronization
 
-        self.data_lock = threading.Lock()
+#         self.data_lock = threading.Lock()
 
-    def offset_callback(self, msg):
-        """Callback per il topic 'controller_intervention_offset'."""
-        with self.data_lock:
-            self.offset_data = msg
-        # self.get_logger().info(f"Ricevuto offset: {msg}")
+#     def offset_callback(self, msg):
+#         """Callback per il topic 'controller_intervention_offset'."""
+#         with self.data_lock:
+#             self.offset_data = msg
+#         # self.get_logger().info(f"Ricevuto offset: {msg}")
 
-    def gripper_callback(self, msg):
-        """Callback per il topic 'mujoco_ros/gripper_command'."""
-        with self.data_lock:
-            self.gripper_data = msg
-        self.get_logger().info(f"Ricevuto comando gripper: {msg}")
+#     def gripper_callback(self, msg):
+#         """Callback per il topic 'mujoco_ros/gripper_command'."""
+#         with self.data_lock:
+#             self.gripper_data = msg
+#         self.get_logger().info(f"Ricevuto comando gripper: {msg}")
 
-    def get_joystick_action(self):
-        """Restituisce i dati ricevuti dai subscriber come array NumPy."""
-        with self.data_lock:
-            # convert joystick data into a numpy array
-            action = np.zeros(4) 
-            action[0] = self.offset_data.x
-            action[1] = self.offset_data.y
-            action[2] = self.offset_data.z
-            action[3] = self.gripper_data.data
+#     def get_joystick_action(self):
+#         """Restituisce i dati ricevuti dai subscriber come array NumPy."""
+#         with self.data_lock:
+#             # convert joystick data into a numpy array
+#             action = np.zeros(4) 
+#             action[0] = self.offset_data.x
+#             action[1] = self.offset_data.y
+#             action[2] = self.offset_data.z
+#             action[3] = self.gripper_data.data
 
-            # Check if offsets are repeated
-            if np.array_equal(action[:3], self.last_action[:3]):
-                self.identical_action_count += 1
-            else:
-                self.identical_action_count = 0
+#             # Check if offsets are repeated
+#             if np.array_equal(action[:3], self.last_action[:3]):
+#                 self.identical_action_count += 1
+#             else:
+#                 self.identical_action_count = 0
 
-            # Set offsets to zero if the same action is repeated for 5 consecutive steps
-            if self.identical_action_count >= 5:
-                action[:3] = np.zeros(3)
-            else:
-                self.last_action[:3] = action[:3]
-            # self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
-        return action
+#             # Set offsets to zero if the same action is repeated for 5 consecutive steps
+#             if self.identical_action_count >= 5:
+#                 action[:3] = np.zeros(3)
+#             else:
+#                 self.last_action[:3] = action[:3]
+#             # self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
+#         return action
     
-    def reset_cmd(self):
-        """funzione per resettare lo stato del nodo RecorderNode internamente."""
+#     def reset_cmd(self):
+#         """funzione per resettare lo stato del nodo RecorderNode internamente."""
 
-        self.gripper_data.data = 0.0  # Reset gripper command
-        self.offset_data = Vector3()  # Resetta offsets
-        self.last_action = np.zeros(4)  # Resetta last action
-        self.identical_action_count = 0  # Reset counter
+#         self.gripper_data.data = 0.0  # Reset gripper command
+#         self.offset_data = Vector3()  # Resetta offsets
+#         self.last_action = np.zeros(4)  # Resetta last action
+#         self.identical_action_count = 0  # Reset counter
     
 
-    def reset_callback(self, request, response):
-        """Callback per resettare lo stato del nodo RecorderNode esternamente (es: da GUI)."""
+#     def reset_callback(self, request, response):
+#         """Callback per resettare lo stato del nodo RecorderNode esternamente (es: da GUI)."""
 
-        self.reset_cmd()
-        response.success = True
-        response.message = "RecorderNode stato resettato con successo."
-        self.get_logger().info("Reset del nodo RecorderNode completato.")
+#         self.reset_cmd()
+#         response.success = True
+#         response.message = "RecorderNode stato resettato con successo."
+#         self.get_logger().info("Reset del nodo RecorderNode completato.")
 
-        return response
+#         return response
     
 
 FLAGS = flags.FLAGS # original succ = 200
-flags.DEFINE_integer("successes_needed", 1, "Number of successful transistions to collect.")
+flags.DEFINE_integer("successes_needed", 200, "Number of successful transistions to collect.")
 proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
 
@@ -141,14 +146,19 @@ def main(_):
         on_press=on_press)
     listener.start()
 
-    rclpy.init()
+    # rclpy.init()
     # Create ROS Node
-    ros_node = RecorderNode()
+    #####################ros_node = RecorderNode()
     # Start Ros Node on separate thread 
-    ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
-    ros_thread.start()
+    #####################ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
+    #####################ros_thread.start()
 
     env = URPickRosEnv() 
+
+################################ solo per testare.. per fare raccolta dati direi che conviene altro metodo del joystick diretto con Recorder Node
+    env = JoystickInterventionWrapper(env) 
+################################
+
     # add wrappers
     env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
@@ -160,22 +170,30 @@ def main(_):
     # VEDI NOTE UR_RECORD_DEMOS_SIM
     #############################################
 
-    ros_node.reset_cmd()  # Reset the recorder node
+    #####################ros_node.reset_cmd()  # Reset the recorder node
     obs, _ = env.reset()  # Gym's reset
     successes = []
     failures = []
     success_needed = FLAGS.successes_needed
     pbar = tqdm(total=success_needed)
     failure_count = 0  # Step counter (to record 1  failure transition per TOT (100-150...) steps)
+    successes_count = 0  # succ counter to  reset env after tot successes
     
     print("press enter to record a successful transition.\n")
     
     while len(successes) <= success_needed:            
+    # while len(failures) <= 650:            
         # if start_key:
-        actions = ros_node.get_joystick_action()
+        #############################################
+        actions = np.zeros(4) # fake policy di zeri
+        #############################################
+
+        ############################################## actions = ros_node.get_joystick_action()
 
         next_obs, rew, done, truncated, info = env.step(actions)
-
+        if "intervene_action" in info:
+                    actions = info["intervene_action"]
+        print("actions: ", actions)
         transition = copy.deepcopy(
             dict(
                 observations=obs,
@@ -191,28 +209,40 @@ def main(_):
             successes.append(transition)
             pbar.update(1)
             success_key = False
+
+            successes_count+= 1
+            # manually reset after 15 successes (serve? senno è one-shot...)
+            # if successes_count % 25 == 0: 
+                # env.reset()
+                # ros_node.reset_cmd() 
+                # pass
         else:
             failure_count += 1 
             # Register 1 failure transition per TOT steps
-            if failure_count % 125 == 0:
+            if failure_count % 25 == 0:
                 failures.append(transition)
+                # print(f" *** Transition OBS STATE: {transition['observations']['state']}")
+                print(failure_count)
 
         if done or truncated:
             obs, _ = env.reset() # gym's reset
-            ros_node.reset_cmd()  # Reset the recorder node
+            # #############################################ros_node.reset_cmd()  # Reset the recorder node
 
-        if len(successes) >= success_needed:
-            break
+        # if len(successes) >= success_needed:
+        #     break
+
+        # Sleep for 1 second
+        # time.sleep(0.6)
 
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"./classifier_data/succ/A_my_UR_{success_needed}_success_images_{uuid}.pkl"
+    file_name = f"./classifier_data/succ/AAA_my_UR_{success_needed}_success_images_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(successes, f)
         print(f"saved {success_needed} successful transitions to {file_name}")
 
-    file_name = f"./classifier_data/fails/A_my_UR_failure_images_{uuid}.pkl"
+    file_name = f"./classifier_data/fails/AAA_my_UR_failure_images_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(failures, f)
         print(f"saved {len(failures)} failure transitions to {file_name}")

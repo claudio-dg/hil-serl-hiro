@@ -45,6 +45,8 @@ from franka_env.envs.wrappers import (
     UR_GripperPenaltyWrapper,
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
+from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
+
 
 FLAGS = flags.FLAGS
 
@@ -53,8 +55,8 @@ flags.DEFINE_integer("seed", 42, "Random seed.")
 flags.DEFINE_boolean("learner", False, "Whether this is a learner.")
 flags.DEFINE_boolean("actor", False, "Whether this is an actor.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
-flags.DEFINE_multi_string("demo_path", None, "Path to the demo data.")
-flags.DEFINE_string("checkpoint_path", None, "Path to save checkpoints.")
+flags.DEFINE_multi_string("demo_path", "demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl", "Path to the demo data.")
+flags.DEFINE_string("checkpoint_path", "AaA_prova_Trainersave_ckpt_Buffer", "Path to save checkpoints.")
 flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint.")
 flags.DEFINE_integer("eval_n_trajs", 0, "Number of trajectories to evaluate.")
 flags.DEFINE_boolean("save_video", False, "Save video.")
@@ -72,9 +74,9 @@ sharding = jax.sharding.PositionalSharding(devices)
 batch_size = 64
 proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 image_keys = ["right"]
-setup_mode = "single-arm-learned-gripper" ### spostare sopra
+setup_mode = "single-arm-learned-gripper"
 encoder_type = "resnet-pretrained"
-discount=0.97 ## ??
+discount=0.97
 replay_buffer_capacity = 50000
 checkpoint_period = 5000
 max_steps: int = 1000000
@@ -101,6 +103,10 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
     This is the actor loop, which runs when "--actor" is set to True.
     """
     if FLAGS.eval_checkpoint_step:
+        # Controlla se è stato specificato un 
+        # checkpoint per la valutazione (--eval_checkpoint_step).
+        # Se sì, esegue una valutazione dell'agente 
+        # invece di raccogliere dati per il training. (?)
         success_counter = 0
         time_list = []
 
@@ -113,6 +119,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
 
         for episode in range(FLAGS.eval_n_trajs):
             obs, _ = env.reset()
+            print("\n\n\n\n AAAAAAAAAAAAAAAAAAAAA \n\n\n")
             done = False
             start_time = time.time()
             while not done:
@@ -181,12 +188,16 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
     intervention_count = 0
     intervention_steps = 0
 
-    # pbar = tqdm.tqdm(range(start_step, config.max_steps), dynamic_ncols=True)
     pbar = tqdm.tqdm(range(start_step, max_steps), dynamic_ncols=True)
-    # with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
+
+    # start_time = time.time()  # Tempo iniziale #IOOOOOOO
+
     for step in pbar:
         timer.tick("total")
-        # viewer.sync()
+         # Stampa il numero di step corrente e il tempo trascorso
+        # if step % 10 == 0:  # Stampa ogni 10 step
+        #     elapsed_time = time.time() - start_time
+        # print(f"Step: {step}, Tempo trascorso: {elapsed_time:.2f} secondi")
 
         with timer.context("sample_actions"):
             # if step < config.random_steps:
@@ -205,14 +216,14 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
 
             next_obs, reward, done, truncated, info = env.step(actions)
 
-            if "left" in info:
-                info.pop("left")
+            # if "left" in info:
+            #     info.pop("left")
             if "right" in info:
                 info.pop("right")
 
             # override the action with the intervention action
             if "intervene_action" in info:
-                actions = info.pop("intervene_action")
+                actions = info.pop("intervene_action") ####gestire azioni con joystick.. 
                 print("intervened!!!")
                 intervention_steps += 1
                 if not already_intervened:
@@ -285,6 +296,7 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
     """
     The learner loop, which runs when "--learner" is set to True.
     """
+
     start_step = (
         int(os.path.basename(checkpoints.latest_checkpoint(os.path.abspath(FLAGS.checkpoint_path)))[11:])
         + 1
@@ -408,54 +420,37 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
 
 
 def main(_):
-    # global config
-    # config = CONFIG_MAPPING[FLAGS.exp_name]()
 
-    # assert config.batch_size % num_devices == 0
     assert batch_size % num_devices == 0
     # seed
     rng = jax.random.PRNGKey(FLAGS.seed)
     rng, sampling_rng = jax.random.split(rng)
 
-    # assert FLAGS.exp_name in CONFIG_MAPPING, "Experiment folder not found."
-    # env = config.get_environment(
-    #     fake_env=False,
-    #     save_video=FLAGS.save_video,
-    #     classifier=False,
-    # )
-
+    # set up the environment
     env = URPickRosEnv() 
     # add wrappers
+    env = JoystickInterventionWrapper(env) 
     env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
     env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
     env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
-    # wrapper del traines
+    # wrapper del trainer
     env = RecordEpisodeStatistics(env)
 
     rng, sampling_rng = jax.random.split(rng)
-
-    
-
-
-
-    
-    # if config.setup_mode == 'single-arm-fixed-gripper' or config.setup_mode == 'dual-arm-fixed-gripper':   
+        
     if setup_mode == 'single-arm-fixed-gripper' or setup_mode == 'dual-arm-fixed-gripper':   
         agent: SACAgent = make_sac_pixel_agent(
             seed=FLAGS.seed,
             sample_obs=env.observation_space.sample(),
             sample_action=env.action_space.sample(),
-            # image_keys=config.image_keys,
             image_keys=image_keys,
-            # encoder_type=config.encoder_type,
             encoder_type=encoder_type,
-            # discount=config.discount, ## ??
-            discount=discount, ## ??
+            discount=discount,
         )
         include_grasp_penalty = False
-    # elif config.setup_mode == 'single-arm-learned-gripper':
+
     elif setup_mode == 'single-arm-learned-gripper':
         agent: SACAgentHybridSingleArm = make_sac_pixel_agent_hybrid_single_arm(
             seed=FLAGS.seed,
@@ -466,6 +461,7 @@ def main(_):
             discount=discount,
         )
         include_grasp_penalty = True
+
     # elif config.setup_mode == 'dual-arm-learned-gripper':
     #     agent: SACAgentHybridDualArm = make_sac_pixel_agent_hybrid_dual_arm(
     #         seed=FLAGS.seed,
@@ -501,9 +497,7 @@ def main(_):
         replay_buffer = MemoryEfficientReplayBufferDataStore(
             env.observation_space,
             env.action_space,
-            # capacity=config.replay_buffer_capacity,
             capacity=replay_buffer_capacity,
-            # image_keys=config.image_keys,
             image_keys=image_keys,
             include_grasp_penalty=include_grasp_penalty,
         )
@@ -521,9 +515,7 @@ def main(_):
         demo_buffer = MemoryEfficientReplayBufferDataStore(
             env.observation_space,
             env.action_space,
-            # capacity=config.replay_buffer_capacity,
             capacity=replay_buffer_capacity,
-            # image_keys=config.image_keys,
             image_keys=image_keys,
             include_grasp_penalty=include_grasp_penalty,
         )
@@ -531,6 +523,8 @@ def main(_):
         assert FLAGS.demo_path is not None
         for path in FLAGS.demo_path:
             with open(path, "rb") as f:
+                # stampa il path
+                print(" path da cui prendo trans per DEMO BUFFER:   ", path)
                 transitions = pkl.load(f)
                 for transition in transitions:
                     if 'infos' in transition and 'grasp_penalty' in transition['infos']: #infos con la s _> c'è solo in demo e non in suc/fail

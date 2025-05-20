@@ -30,7 +30,7 @@ class URPickRosEnv(MujocoGymEnv):
         seed: int = 0,
         control_dt: float = 0.1, #orig: 0.02, --> mentre quello di pick_cube_sim ha 0,1 provo a metterlo ache io
         physics_dt: float = 0.002,
-        time_limit: float = 180.0,
+        time_limit: float = 40.0,
         render_spec: GymRenderingSpec = GymRenderingSpec(),
 
         image_obs: bool = True,
@@ -67,12 +67,12 @@ class URPickRosEnv(MujocoGymEnv):
                     ),
                     "images": spaces.Dict(
                         {
-                            "left": spaces.Box(
-                                low=0,
-                                high=255,
-                                shape=(render_spec.height, render_spec.width, 3),
-                                dtype=np.uint8,
-                            ),
+                            # "left": spaces.Box(
+                            #     low=0,
+                            #     high=255,
+                            #     shape=(render_spec.height, render_spec.width, 3),
+                            #     dtype=np.uint8,
+                            # ),
                             "right": spaces.Box(
                                 low=0,
                                 high=255,
