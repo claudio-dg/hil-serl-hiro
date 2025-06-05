@@ -1,0 +1,257 @@
+import copy
+import os
+from tqdm import tqdm
+import numpy as np
+import pickle as pkl
+import datetime
+from absl import app, flags
+from pynput import keyboard
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Vector3
+from std_msgs.msg import Float64
+import threading
+from std_srvs.srv import Trigger 
+
+########### gym environment ###########
+from ur_hiro_sim.envs.Ros_UR_PegInHole_gym_env import URPegInHoleRosEnv
+# fare : export PYTHONPATH=$PYTHONPATH:~/ros/catkin_ws/src/hil-serl/ur_hiro_sim
+#  & anche: export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/ur_hiro_sim/ur_hiro_sim/envs
+# il secondo serve per wait4message
+
+########### SERL wrappers ###########
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
+from franka_env.envs.relative_env import RelativeFrame
+from franka_env.envs.wrappers import (
+    Quat2EulerWrapper,
+    # MultiCameraBinaryRewardClassifierWrapper,
+    UR_GripperPenaltyWrapper,
+)
+from serl_launcher.wrappers.chunking import ChunkingWrapper
+
+#########################################################
+from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
+import time
+#########################################################
+
+class RecorderNode(Node):
+    def __init__(self):
+        super().__init__('succ_fail_recorder_node')
+
+
+        # Reset service to reset gripper commands externally (GUI) coherently to gym's reset
+        # TODO: implement service call in complex.cc to reset from GUI
+        self.create_service(Trigger, 'reset_recorder', self.reset_callback)
+
+        # Subscriber to 'controller_intervention_offset' topic to receive joystick offsets
+        self.offset_subscriber = self.create_subscription(
+            Vector3,
+            'controller_intervention_offset',
+            self.offset_callback,
+            10
+        )
+
+        # Subscriber to 'controller_intervention_gripper' topic to receive joystick gripper commands
+        self.gripper_subscriber = self.create_subscription(
+            Float64,
+            'controller_intervention_gripper',
+            self.gripper_callback,
+            10
+        )
+
+        # variables to store received inputs  
+        self.offset_data = Vector3()
+        self.gripper_data = Float64()
+        self.last_action = np.zeros(3)       
+        self.identical_action_count = 0  # count of action repetitions due to synchronization
+
+        self.data_lock = threading.Lock()
+
+    def offset_callback(self, msg):
+        """Callback per il topic 'controller_intervention_offset'."""
+        with self.data_lock:
+            self.offset_data = msg
+        # self.get_logger().info(f"Ricevuto offset: {msg}")
+
+    def gripper_callback(self, msg):
+        """Callback per il topic 'mujoco_ros/gripper_command'."""
+        with self.data_lock:
+            self.gripper_data = msg
+        self.get_logger().info(f"Ricevuto comando gripper: {msg}")
+
+    def get_joystick_action(self):
+        """Restituisce i dati ricevuti dai subscriber come array NumPy."""
+        with self.data_lock:
+            # convert joystick data into a numpy array
+            action = np.zeros(3) 
+            action[0] = self.offset_data.x
+            action[1] = self.offset_data.y
+            action[2] = self.offset_data.z
+            #### action[3] = self.gripper_data.data
+
+            # Check if offsets are repeated
+            if np.array_equal(action[:3], self.last_action[:3]):
+                self.identical_action_count += 1
+            else:
+                self.identical_action_count = 0
+
+            # Set offsets to zero if the same action is repeated for 5 consecutive steps
+            if self.identical_action_count >= 5:
+                action[:3] = np.zeros(3)
+            else:
+                self.last_action[:3] = action[:3]
+            # self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
+        return action
+    
+    def reset_cmd(self):
+        """funzione per resettare lo stato del nodo RecorderNode internamente."""
+
+        self.gripper_data.data = 0.0  # Reset gripper command
+        self.offset_data = Vector3()  # Resetta offsets
+        self.last_action = np.zeros(3)  # Resetta last action
+        self.identical_action_count = 0  # Reset counter
+    
+
+    def reset_callback(self, request, response):
+        """Callback per resettare lo stato del nodo RecorderNode esternamente (es: da GUI)."""
+
+        self.reset_cmd()
+        response.success = True
+        response.message = "RecorderNode stato resettato con successo."
+        self.get_logger().info("Reset del nodo RecorderNode completato.")
+
+        return response
+    
+
+FLAGS = flags.FLAGS # original succ = 200
+flags.DEFINE_integer("successes_needed", 200, "Number of successful transistions to collect.")
+# proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
+proprio_keys = ["tcp_pose", "tcp_vel", "tcp_ft"]  
+
+
+success_key = False
+# start_key = False
+def on_press(key):
+    global success_key#, start_key
+    try:
+        if str(key) == 'Key.enter':
+            success_key = True
+        # if str(key) == 'Key.shift':
+        #     start_key = True
+    except AttributeError:
+        pass
+
+def main(_):
+    global success_key#, start_key
+    listener = keyboard.Listener(
+        on_press=on_press)
+    listener.start()
+
+    rclpy.init()
+    # Create ROS Node
+    ros_node = RecorderNode()
+    # Start Ros Node on separate thread 
+    ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
+    ros_thread.start()
+
+    env = URPegInHoleRosEnv() 
+
+################################ solo per testare.. per fare raccolta dati direi che conviene altro metodo del joystick diretto con Recorder Node
+    # env = JoystickInterventionWrapper(env, include_gripper=False) # wrapper per leggere joystick input SENZA gripper command da ROS topic
+################################
+
+    # add wrappers
+    env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
+    env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
+    env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
+    env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
+    # env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
+   
+    #############################################
+    # VEDI NOTE UR_RECORD_DEMOS_SIM
+    #############################################
+
+    ros_node.reset_cmd()  # Reset the recorder node
+    obs, _ = env.reset()  # Gym's reset
+    successes = []
+    failures = []
+    success_needed = FLAGS.successes_needed
+    pbar = tqdm(total=success_needed)
+    failure_count = 0  # Step counter (to record 1  failure transition per TOT (100-150...) steps)
+    saved_failure = 0
+    successes_count = 0  # succ counter to  reset env after tot successes
+    
+    print("press enter to record a successful transition.\n")
+    
+    # while len(successes) < success_needed:            
+    while len(failures) < 650:            
+        # if start_key:
+        #############################################
+        # actions = np.zeros(3) # fake policy di zeri
+        # actions = np.zeros(4) # fake policy di zeri
+        #############################################
+
+        ## MEMO per registrare mi sa che mi conviene togliere wrapper e rimettere joysticj con metodo qua sotto
+        actions = ros_node.get_joystick_action()
+
+        next_obs, rew, done, truncated, info = env.step(actions)
+        if "intervene_action" in info:
+                    actions = info["intervene_action"]
+        # print("actions: ", actions)
+        transition = copy.deepcopy(
+            dict(
+                observations=obs,
+                actions=actions,
+                next_observations=next_obs,
+                rewards=rew,
+                masks=1.0 - done,
+                dones=done,
+            )
+            )
+        obs = next_obs
+        if success_key:
+            successes.append(transition)
+            pbar.update(1)
+            success_key = False
+
+            successes_count+= 1
+            # manually reset after 40 successes (serve? senno è one-shot...)
+            # if successes_count % 50 == 0: 
+                # env.reset()
+                # ros_node.reset_cmd() 
+                # pass
+        else:
+            failure_count += 1 
+            # Register 1 failure transition per TOT steps
+            if failure_count % 15 == 0: # 25
+                saved_failure += 1 
+
+                failures.append(transition)
+                # print(f" *** Transition OBS STATE: {transition['observations']['state']}")
+                print(f" \n\n saved_failure: {saved_failure}")
+
+        # if done or truncated:
+        #     obs, _ = env.reset() # gym's reset
+        #     ros_node.reset_cmd()  # Reset the recorder node
+
+        # if len(successes) >= success_needed:
+        #     break
+
+        # Sleep for 1 second
+        # time.sleep(0.6)
+
+    if not os.path.exists("./classifier_data"):
+        os.makedirs("./classifier_data")
+    uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    file_name = f"./classifier_data/Peg_Hole/succ/PiH_UR_{success_needed}_success_images_{uuid}.pkl"
+    with open(file_name, "wb") as f:
+        pkl.dump(successes, f)
+        print(f"saved {success_needed} successful transitions to {file_name}")
+
+    file_name = f"./classifier_data/Peg_Hole/fails/PiH_UR_failure_images_{uuid}.pkl"
+    with open(file_name, "wb") as f:
+        pkl.dump(failures, f)
+        print(f"saved {len(failures)} failure transitions to {file_name}")
+        
+if __name__ == "__main__":
+    app.run(main)
