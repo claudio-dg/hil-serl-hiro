@@ -60,20 +60,24 @@ from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 # import mujoco.viewer
 
 ########### gym environment ###########
-from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
+from ur_hiro_sim.envs.TestCamera_Ros_UR_PickCube_gym_env import Real_URPickRosEnv
+
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
 from franka_env.envs.relative_env import RelativeFrame
 from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
-    # MultiCameraBinaryRewardClassifierWrapper,
+    MultiCameraBinaryRewardClassifierWrapper,
     UR_GripperPenaltyWrapper,
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
 
+from serl_launcher.networks.reward_classifier import load_classifier_func
+
+
 # recorded_demos_path = "demo_data/Z_final_my_30_demos_2025-05-20_11-54-40.pkl" #demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl
-NO_PROTECTION_recorded_demos_path = "demo_data/NO_PROTECTION_30_demos_2025-07-09_11-25-25.pkl" #
-partial_training_path =  "NO_PROTECTION_Trainersave_ckpt_Buffer"# "1h30_training_checkpoints"
+recorded_demos_path = "demo_data/REAL_ROBOT_30_demos_2025-08-05_15-24-59.pkl" #
+trained_Ckpt_path =  "Real_robot_Training"# "1h30_training_checkpoints"
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
@@ -81,10 +85,10 @@ flags.DEFINE_integer("seed", 42, "Random seed.")
 flags.DEFINE_boolean("learner", False, "Whether this is a learner.")
 flags.DEFINE_boolean("actor", False, "Whether this is an actor.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
-flags.DEFINE_multi_string("demo_path", NO_PROTECTION_recorded_demos_path, "Path to the demo data.")
-flags.DEFINE_string("checkpoint_path", "A_NEW", "Path to save checkpoints.") # NUOVO TRAINING "per ripartire da prec NO_PROTECTION_Trainersave_ckpt_Buffer"
+flags.DEFINE_multi_string("demo_path", recorded_demos_path, "Path to the demo data.")
+flags.DEFINE_string("checkpoint_path", trained_Ckpt_path, "Path to save checkpoints.") # NUOVO TRAINING "per ripartire da prec NO_PROTECTION_Trainersave_ckpt_Buffer"
 # flags.DEFINE_string("checkpoint_path", partial_training_path, "Path to resume & save checkpoints.") # RIPRENDERE VECCHIO TRAINING
-flags.DEFINE_string("eval_checkpoint_path", "", "my Path to the trained checkpoints.")
+flags.DEFINE_string("eval_checkpoint_path", trained_Ckpt_path, "my Path to the trained checkpoints.")
 # flags.DEFINE_string("eval_checkpoint_path", partial_training_path, "my Path to the trained checkpoints.") # per testare ckpt trainato
 flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint.")
 flags.DEFINE_integer("eval_n_trajs", 200, "Number of trajectories to evaluate.")
@@ -101,8 +105,10 @@ sharding = jax.sharding.PositionalSharding(devices)
 
 
 batch_size = 64 #32 #64 original
-proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
-image_keys = ["right"]
+# proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
+proprio_keys = ["tcp_pose", "gripper_pose"] 
+image_keys = ["my_realsense","my_basler"] ################# DA QUA
+
 setup_mode = "single-arm-learned-gripper"
 encoder_type = "resnet-pretrained"
 discount=0.97
@@ -129,17 +135,6 @@ def print_orange(x):
 def print_blue(x):
     return print("\033[94m {}\033[00m".format(x))
 
-# 
-#  Total successes = 54/80
-#  Actual successe rate = 67.5%
-
-## altro test
-#  success rate = 117.67142469698193/200
-#  Total successes = 163/200
-#  Actual successe rate = 81.5%
-#  average time: 10.981820571422578
-# 
-
 ##############################################################################
 
 
@@ -148,10 +143,10 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
     This is the actor loop, which runs when "--actor" is set to True.
     """
     if FLAGS.eval_checkpoint_step:
-        # Controlla se è stato specificato un 
+        # Controlla se è stato specificato uno step (numero) di 
         # checkpoint per la valutazione (--eval_checkpoint_step).
         # Se sì, esegue una valutazione dell'agente 
-        # invece di raccogliere dati per il training. (?)
+        # invece di raccogliere dati per il training. (?) --> io lo setto da terminale per sicurezza anzichè da qua
         success_counter = 0
         my_success_counter = 0
         time_list = []
@@ -272,7 +267,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
             # if step < config.random_steps:
             if step < random_steps:
                 actions = env.action_space.sample()
-                print_green(f"(ACTOR) AZIONE .sampled  = {actions}%") # random = 0 ergo non lo fa mai...
+                # print_green(f"(ACTOR) AZIONE .sampled  = {actions}%") # random = 0 ergo non lo fa mai...
             else:
                 sampling_rng, key = jax.random.split(sampling_rng)
                 actions = agent.sample_actions(
@@ -280,9 +275,9 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                     seed=key,
                     argmax=False,
                 )
-                print_blue(f"(ACTOR) AZIONE PRE jax.device = {actions}%")
+                # print_blue(f"(ACTOR) AZIONE PRE jax.device = {actions}%") # anche qui effettivamente rimangono -1 / 0 / 1 !!
                 actions = np.asarray(jax.device_get(actions))
-                print_orange(f"(ACTOR) AZIONE POST jax.device = {actions}%")
+                # print_orange(f"(ACTOR) AZIONE POST jax.device = {actions}%")
         # Step environment
         with timer.context("step_env"):
             
@@ -514,14 +509,52 @@ def main(_):
     rng = jax.random.PRNGKey(FLAGS.seed)
     rng, sampling_rng = jax.random.split(rng)
 
+    # use_trained_reward_classifier = True
+
+    ##########################################################################
+    ##### CREO ENVIRONMENT SOLO PER ACTOR, LEARNER NON SERVE (?),.. 
+    #  ALTRIMENTI APRO 2 VOLTE TELECAMERE E VIENE GENERATO ERRORE
+    # IN REALTÀ LEARNER ACCEDE AD ENV.OBS SPACE AD EsEMPIO
+    # QUINDI PROVO A METTERE SOLO LA PARTE DI CLASSIFIER ESCLUSIVA PER L'ACTOR, HA SENSO? PROVO
+    ##########################################################################
+
     # set up the environment
-    env = URPickRosEnv() 
+    env = Real_URPickRosEnv(start_camera=FLAGS.actor) ##### attiva camere solo nel caso di ACTOR 
     # add wrappers
     env = JoystickInterventionWrapper(env) 
     env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
     env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
+   
+    ################################################################################################################################
+    if  FLAGS.actor:
+            print_green(f"\n\n ######### ACTOR  ######### \n\n")
+            classifier = load_classifier_func(
+                key=jax.random.PRNGKey(0),
+                sample=env.observation_space.sample(),
+                image_keys=image_keys,
+                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"),
+            )
+
+            def reward_func(obs, info):
+                sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
+                pred = sigmoid(classifier(obs))
+                if int(pred[0] > 0.75):  #### scatola rovinata.. abbasso threshold da 0.85 a 0.75                  
+                    print_green(f"prediction del classifier = {sigmoid(classifier(obs))}")
+                else:
+                    print_blue(f"prediction del classifier = {sigmoid(classifier(obs))}")
+
+                if (info["is_low_enough"]):                    
+                    print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
+                else:
+                    print_blue(f"TCP < 0,26 = {info["is_low_enough"]}")
+
+                return int(pred[0] > 0.75 and info["is_low_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+
+            env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
+    ################################################################################################################################ 
+    
     env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
     # wrapper del trainer
     env = RecordEpisodeStatistics(env)

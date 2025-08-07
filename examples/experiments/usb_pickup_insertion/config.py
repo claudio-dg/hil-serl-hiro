@@ -131,6 +131,10 @@ class TrainConfig(DefaultTrainingConfig):
             def reward_func(obs):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
                 return int(sigmoid(classifier(obs)) > 0.7 and obs["state"][0, 0] > 0.4)
+                # oltre a true/false del classificatore mette in AND controlllo su qualche posizione, non so quale sia esattamente
+                # potrebbe essere fatto che gripper chiuso o ad esempio, come può essuere utile nel mio caso
+                # che la Z del robot sia oltre un certo valore --> così torna true solo se 
+                # sia immagine sia pos robot danno TRUE!
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
         env = GripperPenaltyWrapper(env, penalty=-0.02)

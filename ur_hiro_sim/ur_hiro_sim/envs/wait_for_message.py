@@ -41,6 +41,19 @@ def wait_for_message(
     if subs_ready:
         if sub.handle.pointer in subs_ready:
             msg_info = sub.handle.take_message(sub.msg_type, sub.raw)
+            # add a while loop that waits for msg_info[0] to be "not empty" and keeps printing the values of such variable
+            while msg_info is None:
+                print("\n\n\n\n\n msg_info[0] is empty:", msg_info)
+                # print("msg_info[0] is empty:", msg_info)
+                # print("msg_info[0] is empty:", msg_info)
+                # print("msg_info[0] is empty:", msg_info)
+                msg_info = sub.handle.take_message(sub.msg_type, sub.raw)
+            # print("\n\n\n\n\n Received message:", msg_info[0])
+            # print("Received message:", msg_info[0])
+            # print("Received message:", msg_info[0])
+            # print("Received message:", msg_info[0])
+            # print("Received message:", msg_info[0])
+            ##########à
             return (True, msg_info[0])
 
     return (False, None)

@@ -12,6 +12,12 @@ from serl_launcher.vision.data_augmentations import resize
 ModuleDef = Any
 
 
+def print_green(x):
+    return print("\033[92m {}\033[00m".format(x))
+
+def print_boh(x):
+    return print("\033[95m {}\033[00m".format(x))
+
 class AddSpatialCoordinates(nn.Module):
     dtype: Any = jnp.float32
 
@@ -217,12 +223,17 @@ class ResNetEncoder(nn.Module):
     ):
         # put inputs in [-1, 1]
         # x = observations.astype(jnp.float32) / 127.5 - 1.0
+        print_green(f"SHAPE OSSERVAZIONI:, {observations.shape}") #  SHAPE OSSERVAZIONI:, (128, 128, 768)
+
         if observations.shape[-3:-1] != self.image_size:
             observations = resize(observations, self.image_size)
 
         # imagenet mean and std # TODO: add this back
         mean = jnp.array([0.485, 0.456, 0.406])
         std = jnp.array([0.229, 0.224, 0.225])
+        ####################à
+        print_boh(f"SHAPE OSSERVAZIONI:, {observations.shape}")
+        ##################
         x = (observations.astype(jnp.float32) / 255.0 - mean) / std
 
         if self.add_spatial_coordinates:
@@ -339,6 +350,7 @@ class PreTrainedResNetEncoder(nn.Module):
         encode: bool = True,
         train: bool = True,
     ):
+        # print_green(f"bttt")
         x = observations
         if encode:
             x = self.pretrained_encoder(x, train=train)

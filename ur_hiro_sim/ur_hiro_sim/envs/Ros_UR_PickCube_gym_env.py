@@ -11,6 +11,9 @@ import time
 
 #  fare:
 # export PYTHONPATH=$PYTHONPATH:~/ros/catkin_ws/src/hil-serl/ur_hiro_sim
+def print_boh(x):
+    return print("\033[95m {}\033[00m".format(x))
+
 
 bridge = CvBridge()
 
@@ -30,7 +33,7 @@ class URPickRosEnv(MujocoGymEnv):
         seed: int = 0,
         control_dt: float = 0.1, #orig: 0.02, --> mentre quello di pick_cube_sim ha 0,1 provo a metterlo ache io
         physics_dt: float = 0.002,
-        time_limit: float = 40.0,
+        time_limit: float = 40.0, # TRAINING = 30 # 80, #2.0,
         render_spec: GymRenderingSpec = GymRenderingSpec(),
 
         image_obs: bool = True,
@@ -97,12 +100,15 @@ class URPickRosEnv(MujocoGymEnv):
         # avvenga la lettura dello stato esatto subito post azione...)
 
         super().step(action)  # Send action to robot through ROS
+        print_boh(f"[DEBUG] AZIONE POLICY finale GYM SPECIFICO: {action}")
+
 
         done = False  
         info = {}
         obs = self.compute_observation()
         reward = self._compute_reward()
         success = self._is_success()
+        box_fallen = self.is_box_fallen()
 
         # Check timeout
         elapsed_time = time.time() - self._start_time
@@ -110,7 +116,7 @@ class URPickRosEnv(MujocoGymEnv):
         time_exceeded = elapsed_time > self._time_limit
 
         # establish if the episode is over
-        done = time_exceeded or success
+        done = time_exceeded or success or box_fallen
 
         info = {
             "succeed": success,
@@ -256,7 +262,8 @@ class URPickRosEnv(MujocoGymEnv):
             current_state = self._current_state
 
         obj_Z_init = 0.3 # hard code
-        obj_Z_desired = obj_Z_init + 0.2 # hard code desired height = increasing of 0,2
+        # nota : MODIFICARE QUI E "LIFT" IN is_success()
+        obj_Z_desired = obj_Z_init + 0.15#0.125 # hard code desired height = increasing of 0,2 ORIGINAL ---  abbasso a 0.1 per ultima fase training post 160k
 
         object_position = np.array([current_state.obj_poses[0].pose.position.x,
                                     current_state.obj_poses[0].pose.position.y,
@@ -287,6 +294,25 @@ class URPickRosEnv(MujocoGymEnv):
         
 
     
+    def is_box_fallen(self) -> bool: 
+        ####### implemento questa funzione per resettare simulazione in training quanfo cubo cade da tavolo ####
+        # manualmente non si può resettare perchè non resetta il time limit dell episodio
+        obj_Z_init = 0.3 # hard code
+        fallen_threshold = obj_Z_init - 0.15
+        # Read current_state in a thread-safe way
+        with self._state_mutex:
+            current_state = self._current_state
+
+        # ------ object pose : this case -> 1 single obj ------
+
+        object_position = np.array([current_state.obj_poses[0].pose.position.x,
+                                    current_state.obj_poses[0].pose.position.y,
+                                    current_state.obj_poses[0].pose.position.z])
+        if object_position[2] <= fallen_threshold:
+            return True
+        else:
+            return False
+
     def _is_success(self) -> bool: 
 
         # Legge lo stato corrente in modo thread-safe
@@ -309,12 +335,20 @@ class URPickRosEnv(MujocoGymEnv):
         lift = object_position[2] - obj_Z_init
 
         # return dist < 0.165 and lift > 0.2
-        return dist < 0.05 and lift > 0.2
+        return dist < 0.05 and lift > 0.1 #0.15# 0.2 ORIGINAL --> abbasso a 0.1 per ultima fase training post 160k
+
 
 
 def main():
     print("Avvio dell'environment URPickRosEnv con ROS2...")
-
+    env = URPickRosEnv()
+    env.reset()
+    for i in range(100000):
+        env.step(np.random.uniform(-1, 1, 4))
+        print(i)
+        if i % 10000 == 0:
+            env.reset()
+    env.close()
 if __name__ == "__main__":
     main()
 

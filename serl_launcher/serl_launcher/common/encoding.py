@@ -7,6 +7,12 @@ import jax.numpy as jnp
 from einops import rearrange, repeat
 
 
+def print_green(x):
+    return print("\033[92m {}\033[00m".format(x))
+
+def print_boh(x):
+    return print("\033[95m {}\033[00m".format(x))
+
 class EncodingWrapper(nn.Module):
     """
     Encodes observations into a single flat encoding, adding additional
@@ -39,9 +45,22 @@ class EncodingWrapper(nn.Module):
                 if self.enable_stacking:
                     # Combine stacking and channels into a single dimension
                     if len(image.shape) == 4:
+                        # print_green(f"Saved video for camera {camera_key} at {video_path}")
+                        print_green(f"image shape PRE {image.shape}")
+
                         image = rearrange(image, "T H W C -> H W (T C)")
+
+                        print_boh(f"image shape POST {image.shape}")
+
+
                     if len(image.shape) == 5:
+                        print_green(f"5 --> 6 ")
+                        
+                        print_green(f"image shape PRE {image.shape}")
+
                         image = rearrange(image, "B T H W C -> B H W (T C)")
+                        print_boh(f"image shape POST {image.shape}")
+
 
             image = self.encoder[image_key](image, train=train, encode=not is_encoded)
 

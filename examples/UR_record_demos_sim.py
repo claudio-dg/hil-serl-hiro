@@ -30,13 +30,17 @@ from franka_env.envs.wrappers import (
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
+#########################################################
+from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
+import time
+#########################################################
 
 import os
 print("PYTHONPATH:", os.environ.get("PYTHONPATH"))
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer("successes_needed", 20, "Number of successful demos to collect.")
+flags.DEFINE_integer("successes_needed", 30, "Number of successful demos to collect.")
 proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
 class DemoRecorderNode(Node):
@@ -138,6 +142,12 @@ def main(_):
 
 
     env = URPickRosEnv() 
+
+
+################################ solo per testare.. per fare raccolta dati direi che conviene altro metodo del joystick diretto con Recorder Node
+    # env = JoystickInterventionWrapper(env) 
+################################
+
     # add wrappers
     env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
@@ -172,15 +182,20 @@ def main(_):
     
         actions = ros_node.get_joystick_action()
         # print("ACTIONS = ", actions)
+        # actions = np.zeros(4) # fake policy di zeri
 
         next_obs, rew, done, truncated, info = env.step(actions)
         # print("Osservazione restituita da env.step():", next_obs)
 
         returns += rew
-        step_counter += 1  
+        step_counter += 1
+
+        # if "intervene_action" in info:
+                    # actions = info["intervene_action"]
+                    # print("intervened!!!")  
 
         # Register 1 transition per TOT steps
-        if step_counter % 175 == 0:
+        if step_counter % 5 == 0: # 175 == 0:
             transition = copy.deepcopy(
                 dict(
                     observations=obs,
@@ -192,8 +207,8 @@ def main(_):
                     infos=info,
                 )
             )
-            print(f" *** Transition actions: {transition['actions']}")
-            print(f" *** Transition OBS STATE: {transition['observations']['state']}")
+            # print(f" *** Transition actions: {transition['actions']}")
+            # print(f" *** Transition OBS STATE: {transition['observations']['state']}")
             # print(f" *** Transition OBS: {transition['observations']}") #includes images
             trajectory.append(transition)
                 
@@ -214,6 +229,8 @@ def main(_):
             obs, info = env.reset()
             ros_node.reset_cmd()
             #####################
+        time.sleep(0.05) # diminuire il n di step
+        
             
     print("### RECORDING COMPLETED ### \n    n. di successi raggiunti =   ", success_count)
 
@@ -221,15 +238,15 @@ def main(_):
         os.makedirs("./demo_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # file_name = f"./demo_data/{FLAGS.exp_name}_{success_needed}_demos_{uuid}.pkl"
-    file_name = f"./demo_data/A_my_UR_TEST_{success_needed}_demos_{uuid}.pkl"
+    file_name = f"./demo_data/NO_PROTECTION_{success_needed}_demos_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(transitions, f)
         print(f"saved {success_needed} demos to {file_name}")
 
     env.close()
-    ros_node.destroy_node()
+    # ros_node.destroy_node()
     rclpy.shutdown()
-    ros_thread.join()
+    # ros_thread.join()
 
 def new_func():
     return False

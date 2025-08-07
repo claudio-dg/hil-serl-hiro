@@ -3,13 +3,12 @@ from typing import Any, Literal, Tuple, Dict
 import gym
 import numpy as np
 import rclpy
-from my_cpp_py_pkg.msg import SimulationState  # Custom msg
+from my_cpp_py_pkg.msg import RealState  # Custom msg
 import threading
-from rclpy.wait_for_message import wait_for_message
 from std_srvs.srv import Trigger
 from std_msgs.msg import Float32MultiArray 
 import time
-# from wait_for_message import wait_for_messages
+from wait_for_message import wait_for_message
 
 @dataclass(frozen=True)
 class GymRenderingSpec:
@@ -18,8 +17,8 @@ class GymRenderingSpec:
     camera_id: str | int = -1
     mode: Literal["rgb_array", "human"] = "rgb_array"
 
-class MujocoGymEnv(gym.Env):
-    """MujocoEnv with gym interface, ROS state is injected externally."""
+class RealGymEnv(gym.Env):
+    """Real robot's gym interface, ROS state is injected externally."""
 
     def __init__(
             self,
@@ -35,7 +34,8 @@ class MujocoGymEnv(gym.Env):
         self._time_limit = time_limit
         self._random = np.random.RandomState(seed)
         self._render_specs = render_spec
-        self._current_state = SimulationState()
+        # self._current_state = SimulationState()
+        self._current_state = RealState()
 
         self._state_mutex = threading.Lock()  # Mutex to protect current_state
 
@@ -43,7 +43,7 @@ class MujocoGymEnv(gym.Env):
         if rclpy.ok() == False:
             rclpy.init()
 
-        self._ros_node = rclpy.create_node("ros_gym_node")
+        self._ros_node = rclpy.create_node("ros_real_gym_node")
 
         # Publishers
         # Publish gym's robot action on ROS
@@ -56,19 +56,22 @@ class MujocoGymEnv(gym.Env):
         # Subscribers
         # Read mujoco state from ROS
         self._ros_node.create_subscription(
-            SimulationState,  
-            '/mujoco_state',
-            self.mujoco_state_cb,
+            RealState,  
+            '/real_state',
+            self.real_state_cb,
             rclpy.qos.qos_profile_sensor_data
         )
 
         # Services
-        # Client for mujoco_reset_scene Service
-        self._reset_client = self._ros_node.create_client(Trigger, "mujoco_reset_scene")
+        ###########################################################
+        # Client for real_robot_reset
+        self._real_reset_client = self._ros_node.create_client(Trigger, "real_reset")
 
         # Wait for the service to become available
-        while not self._reset_client.wait_for_service(timeout_sec=1.0):
-            self._ros_node.get_logger().info("Aspettando che il servizio 'mujoco_reset_scene' sia disponibile...")
+        while not self._real_reset_client.wait_for_service(timeout_sec=1.0):
+            self._ros_node.get_logger().info("Aspettando che il servizio 'real_reset' sia disponibile...")
+        ###########################################################
+
 
         # Spinning the node in a different thread
         self._executor = rclpy.executors.MultiThreadedExecutor()
@@ -93,7 +96,7 @@ class MujocoGymEnv(gym.Env):
 
 
     # ------------------- ROS Callbacks ------------------- #
-    def mujoco_state_cb(self, msg):
+    def real_state_cb(self, msg):
         """Callback per aggiornare l'environment con i dati ricevuti da ROS."""
         with self._state_mutex:
             self._current_state = msg
@@ -117,29 +120,30 @@ class MujocoGymEnv(gym.Env):
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
         self.publish_action(action)
 
-
     def reset(self, seed=None, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         
-        self._ros_node.get_logger().info(f" \n # Resetting MuJoCo environment")
+        self._ros_node.get_logger().info(f" \n # Resetting real robot pose (manually reset environment?)")
         # call the reset service
         request = Trigger.Request()
-        response = self._reset_client.call(request)    
-        # response = self._reset_client.call(request, timeout_sec=25.0)    
+        # response = self._reset_client.call(request)    
+
+        ###################################################################
+        response = self._real_reset_client.call(request)    
+        time.sleep(10.0)  # wait for the service to process the request
+        ###################################################################
 
         # wait for the result
         self._ros_node.get_logger().info(f" ####################### Reset completes with return=: {response.message}")
 
         # Waiting for new state from Mujoco through ROS2 msg
         self._current_state = None
-
-        success, msg = wait_for_message(SimulationState, self._ros_node, '/mujoco_state', time_to_wait=25.0)
-        # success, msg = wait_for_message(SimulationState, self._ros_node, '/mujoco_state', time_to_wait=25.0)
+        success, msg = wait_for_message(RealState, self._ros_node, '/real_state', time_to_wait=5.0)
 
         if success:
             self._ros_node.get_logger().info("\n\n\n Nuovo stato ricevuto! \n\n\n ")
             self._current_state = msg
         else:
-            self._ros_node.get_logger().error("Timeout: nessun messaggio ricevuto dal topic /mujoco_state.")
+            self._ros_node.get_logger().error("Timeout: nessun messaggio ricevuto dal topic /real_state.")
         
         # Init timer for the episode's timeout
         self._start_time = time.time()
@@ -151,7 +155,7 @@ class MujocoGymEnv(gym.Env):
 
     def close(self) -> None:
 
-        self._ros_node.get_logger().info(f"\n #Closing MuJoCo environment")
+        self._ros_node.get_logger().info(f"\n #Closing base gym environment")
         rclpy.shutdown()
         if self._spinning_thread.is_alive():
             self._spinning_thread.join(timeout=1.0)

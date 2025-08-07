@@ -1,4 +1,5 @@
 import copy
+from collections import deque 
 import os
 from tqdm import tqdm
 import numpy as np
@@ -124,7 +125,7 @@ import time
     
 
 FLAGS = flags.FLAGS # original succ = 200
-flags.DEFINE_integer("successes_needed", 200, "Number of successful transistions to collect.")
+flags.DEFINE_integer("successes_needed", 100, "Number of successful transistions to collect.")
 proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
 
@@ -164,7 +165,7 @@ def main(_):
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
     env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
-    env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
+    # env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
    
     #############################################
     # VEDI NOTE UR_RECORD_DEMOS_SIM
@@ -172,8 +173,11 @@ def main(_):
 
     #####################ros_node.reset_cmd()  # Reset the recorder node
     obs, _ = env.reset()  # Gym's reset
-    successes = []
-    failures = []
+    time.sleep(0.2)########################### vedere se non crasha più
+    #### CRASHA COMUNQUE RANDOMICAMENTE DOPO RESET
+
+    successes = deque()
+    failures = deque()
     success_needed = FLAGS.successes_needed
     pbar = tqdm(total=success_needed)
     failure_count = 0  # Step counter (to record 1  failure transition per TOT (100-150...) steps)
@@ -181,11 +185,12 @@ def main(_):
     
     print("press enter to record a successful transition.\n")
     
-    while len(successes) <= success_needed:            
+    while len(successes) < success_needed:            
     # while len(failures) <= 650:            
         # if start_key:
         #############################################
-        actions = np.zeros(4) # fake policy di zeri
+        # actions = np.zeros(4) # fake policy di zeri
+        actions = env.action_space.sample()
         #############################################
 
         ############################################## actions = ros_node.get_joystick_action()
@@ -193,9 +198,12 @@ def main(_):
         next_obs, rew, done, truncated, info = env.step(actions)
         if "intervene_action" in info:
                     actions = info["intervene_action"]
-        print("actions: ", actions)
+                    print("intervened!!!")
+
+        #  print("actions: ", actions)
         transition = copy.deepcopy(
-            dict(
+        dict(
+        # transition = dict(
                 observations=obs,
                 actions=actions,
                 next_observations=next_obs,
@@ -212,27 +220,32 @@ def main(_):
 
             successes_count+= 1
             # manually reset after 15 successes (serve? senno è one-shot...)
-            # if successes_count % 25 == 0: 
-                # env.reset()
+            if successes_count % 25 == 0: 
+                env.reset()
                 # ros_node.reset_cmd() 
                 # pass
         else:
             failure_count += 1 
+            print(failure_count)
+
             # Register 1 failure transition per TOT steps
             if failure_count % 25 == 0:
-                failures.append(transition)
+                 pass
+                # failures.append(transition)
                 # print(f" *** Transition OBS STATE: {transition['observations']['state']}")
-                print(failure_count)
+                # print(failure_count)
 
         if done or truncated:
             obs, _ = env.reset() # gym's reset
+            time.sleep(0.2)########################### vedere se non crasha più
             # #############################################ros_node.reset_cmd()  # Reset the recorder node
 
         # if len(successes) >= success_needed:
         #     break
 
         # Sleep for 1 second
-        # time.sleep(0.6)
+        time.sleep(0.05) # questo? aggiunto nick? ## forse no.. è per diminuire il n di step, e anche senza LAGGA cmq quindi non è il problema
+        # time.sleep(0.205) # questo? aggiunto nick? ## forse no.. è per diminuire il n di step, e anche senza LAGGA cmq quindi non è il problema
 
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")

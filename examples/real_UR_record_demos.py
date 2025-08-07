@@ -14,43 +14,51 @@ import threading
 from std_srvs.srv import Trigger 
 
 ########### gym environment ###########
-from ur_hiro_sim.envs.Ros_UR_PegInHole_gym_env import URPegInHoleRosEnv
-# fare : export PYTHONPATH=$PYTHONPATH:~/ros/catkin_ws/src/hil-serl/ur_hiro_sim
-#  & anche: export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/catkin_ws/src/hil-serl/ur_hiro_sim/ur_hiro_sim/envs
-# il secondo serve per wait4message
+# from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
+from ur_hiro_sim.envs.TestCamera_Ros_UR_PickCube_gym_env import Real_URPickRosEnv
 
-# NUOVO SU Vecow x wai4msg 
-# export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/ur_mujoco_ws/src/hil-serl-hiro/ur_hiro_sim/ur_hiro_sim/envs
-
-# goma: per wait4message
-# export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/ur_mujoco_ws/src/hil-serl-hiro/ur_hiro_sim/ur_hiro_sim/envs
 ########### SERL wrappers ###########
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
 from franka_env.envs.relative_env import RelativeFrame
 from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
-    # MultiCameraBinaryRewardClassifierWrapper,
+    MultiCameraBinaryRewardClassifierWrapper,
     UR_GripperPenaltyWrapper,
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
+from serl_launcher.networks.reward_classifier import load_classifier_func
 
-
+#########################################################
+from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
+import time
+#########################################################
 import os
+import jax
+import jax.numpy as jnp
+
+
+def print_green(x):
+    return print("\033[92m {}\033[00m".format(x))
+
+def print_boh(x):
+    return print("\033[95m {}\033[00m".format(x))
+
+
 print("PYTHONPATH:", os.environ.get("PYTHONPATH"))
 
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("successes_needed", 30, "Number of successful demos to collect.")
-# proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
-proprio_keys = ["tcp_pose", "tcp_vel", "tcp_ft"] 
+proprio_keys = ["tcp_pose", "gripper_pose"] 
+# proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] ] 
 
 class DemoRecorderNode(Node):
     def __init__(self):
-        super().__init__('demo_recorder_node')
+        super().__init__('provo_real_demo_recorder_node')
 
         # Reset service to reset gripper commands externally (GUI) coherently to gym's reset
         # TODO: implement service call in complex.cc to reset from GUI
-        self.create_service(Trigger, 'reset_recorder', self.reset_callback)
+        # self.create_service(Trigger, 'reset_recorder', self.reset_callback)
 
         # Subscriber to 'controller_intervention_offset' topic to receive joystick offsets
         self.offset_subscriber = self.create_subscription(
@@ -71,8 +79,7 @@ class DemoRecorderNode(Node):
         # variables to store received inputs  
         self.offset_data = Vector3()
         self.gripper_data = Float64()
-        # self.last_action = np.zeros(4)       
-        self.last_action = np.zeros(3)       
+        self.last_action = np.zeros(4)       
         self.identical_action_count = 0  # count of action repetitions due to synchronization
 
         self.data_lock = threading.Lock()
@@ -94,12 +101,16 @@ class DemoRecorderNode(Node):
         """Restituisce i dati ricevuti dai subscriber come array NumPy."""
         with self.data_lock:
             # convert joystick data into a numpy array
-            # action = np.zeros(4) 
-            action = np.zeros(3) 
+            action = np.zeros(4) 
             action[0] = self.offset_data.x
             action[1] = self.offset_data.y
             action[2] = self.offset_data.z
-            # action[3] = self.gripper_data.data
+            action[3] = self.gripper_data.data
+
+            ###### agguingo qua il cap delle azioni che nel succ/fail faccio nel joystickWrapper
+            action[0] *= 0.35
+            action[1] *= 0.35
+            action[2] *= 0.35
 
              # Check if offsets are repeated
             if np.array_equal(action[:3], self.last_action[:3]):
@@ -121,8 +132,7 @@ class DemoRecorderNode(Node):
 
         self.gripper_data.data = 0.0  # Reset gripper command
         self.offset_data = Vector3()  # Resetta offsets
-        # self.last_action = np.zeros(4)  # Resetta last action
-        self.last_action = np.zeros(3)  # Resetta last action
+        self.last_action = np.zeros(4)  # Resetta last action
         self.identical_action_count = 0  # Reset counter
 
     def reset_callback(self, request, response):
@@ -144,26 +154,59 @@ def main(_):
     ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
     ros_thread.start()
 
+    #########
+    use_trained_reward_classifier = True
+    classifier_keys = ["my_realsense","my_basler"]
+    #########
+    env = Real_URPickRosEnv() 
 
-    env = URPegInHoleRosEnv() 
+
+################################ solo per testare.. per fare raccolta dati direi che conviene altro metodo del joystick diretto con Recorder Node
+    # env = JoystickInterventionWrapper(env) 
+################################
+
     # add wrappers
     env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
     env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
-    # env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
    
-    #############################################
-    # tcp_ft ? NOTA SERLOBSWRAP-> se uso questo però nelle OBS
-    # poi ho solo info propriocettive del robot + le immagini, se voglio anche altre info devo modificare
-    #  serl_obs_wrapper aggiungendo gli altri campi come fa lui con ** obs_space[images!]
-    # per ora provo come viene poi in base a cosa serve modifico! 
-    # --> ma se AD es voglio altre info propriocettive come la forza sul tcp, credo basi aggiungerlo alle proprio_keys
+    ################################################################################################################################
+    if use_trained_reward_classifier:
+            classifier = load_classifier_func(
+                key=jax.random.PRNGKey(0),
+                sample=env.observation_space.sample(),
+                image_keys=classifier_keys,
+                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"),
+            )
 
-    # NOTA: credo poi li prenda in **ordine alfabetico**, 
-    # perchè in quello flatten mette per primo
-    #  il gripper_pose poi tcpPose e tcpVel
-    ################################################
+            def reward_func(obs, info):
+                sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
+                pred = sigmoid(classifier(obs))
+                if int(pred[0] > 0.85):                    
+                    print_green(f"prediction del classifier = {sigmoid(classifier(obs))}")
+                else:
+                    print_boh(f"prediction del classifier = {sigmoid(classifier(obs))}")
+
+                if (info["is_low_enough"]):                    
+                    print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
+                else:
+                    print_boh(f"TCP < 0,26 = {info["is_low_enough"]}")
+
+                return int(pred[0] > 0.85 and info["is_low_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+                # return int(sigmoid(classifier(obs)) > 0.7) 
+                ### per ora provo a tralasciaire condizione AND robot poi vediamo
+                # return int(sigmoid(classifier(obs)) > 0.7 and obs["state"][0, 0] > 0.4)
+                # oltre a true/false del classificatore mette in AND controlllo su qualche posizione, non so quale sia esattamente
+                # potrebbe essere fatto che gripper chiuso o ad esempio, come può essuere utile nel mio caso
+                # che la Z del robot sia oltre un certo valore --> così torna true solo se 
+                # sia immagine sia pos robot danno TRUE!
+
+            env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
+    ################################################################################################################################
+   
+    env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
+   
 
     ros_node.reset_cmd()     # Reset the recorder node
     obs, info = env.reset()  # Gym's reset
@@ -181,15 +224,22 @@ def main(_):
     
         actions = ros_node.get_joystick_action()
         # print("ACTIONS = ", actions)
+        # actions = np.zeros(4) # fake policy di zeri
 
         next_obs, rew, done, truncated, info = env.step(actions)
         # print("Osservazione restituita da env.step():", next_obs)
 
+        print_green(f"Reward con classifier = {rew}")
+
         returns += rew
-        step_counter += 1  
+        step_counter += 1
+
+        # if "intervene_action" in info:
+                    # actions = info["intervene_action"]
+                    # print("intervened!!!")  
 
         # Register 1 transition per TOT steps
-        if step_counter % 10 == 0: # 175 == 0:
+        if step_counter % 1 == 0: # 175 == 0:
             transition = copy.deepcopy(
                 dict(
                     observations=obs,
@@ -201,9 +251,10 @@ def main(_):
                     infos=info,
                 )
             )
-            print(f" *** Transition actions: {transition['actions']}")
-            print(f" *** Transition OBS STATE: {transition['observations']['state']}")
+            # print_boh(f" *** Transition actions: {transition['actions']}")
+            # print_green(f" *** Transition OBS STATE: {transition['observations']['state']}")
             # print(f" *** Transition OBS: {transition['observations']}") #includes images
+            print_boh(f" *** saved Transition  N°: {step_counter/1}")
             trajectory.append(transition)
                 
         pbar.set_description(f"Return: {returns}")
@@ -214,15 +265,19 @@ def main(_):
                 for transition in trajectory:
                     transitions.append(copy.deepcopy(transition))
                 success_count += 1
-                print(f"Success count: {success_count}")
+                print_green(f"Success count: {success_count}")
                 pbar.update(1)
             else:
-                print("\n\n  tentativo FALLITO (probabile TIMEOUT)") 
+                print_boh(f"\n\n  tentativo FALLITO (probabile TIMEOUT)") 
             trajectory = []
             returns = 0           
             obs, info = env.reset()
             ros_node.reset_cmd()
             #####################
+        # time.sleep(0.05) # diminuire il n di step
+        time.sleep(0.2) ### provo a diminuire freq step robot reale..
+
+        
             
     print("### RECORDING COMPLETED ### \n    n. di successi raggiunti =   ", success_count)
 
@@ -230,15 +285,15 @@ def main(_):
         os.makedirs("./demo_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # file_name = f"./demo_data/{FLAGS.exp_name}_{success_needed}_demos_{uuid}.pkl"
-    file_name = f"./demo_data/Peg_Hole/PiH_{success_needed}_demos_{uuid}.pkl"
+    file_name = f"./demo_data/NO_PROTECTION_{success_needed}_demos_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(transitions, f)
         print(f"saved {success_needed} demos to {file_name}")
 
     env.close()
-    ros_node.destroy_node()
+    # ros_node.destroy_node()
     rclpy.shutdown()
-    ros_thread.join()
+    # ros_thread.join()
 
 def new_func():
     return False
