@@ -14,8 +14,8 @@ This branch contains our own HIL-SERL implementation for UR Robot. The following
 - [HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning](#serl-a-software-suite-for-sample-efficient-robotic-reinforcement-learning)
   - [Installation](#installation)
   - [How to run the code](#how-to-run-the-code)
-  <!-- - [Contribution](#contribution) -->
-   <!--  - [Overview and Code Structure](#overview-and-code-structure) -->
+   <!-- - [Contribution](#contribution) -->
+    - [Overview and Code Structure](#overview-and-code-structure) 
   - [Citation](#citation)
 
 ## Installation
@@ -51,8 +51,13 @@ This branch contains our own HIL-SERL implementation for UR Robot. The following
 
 4. **Install for serl_robot_infra** Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions. This contains the instruction for installing the impendence-based [serl_franka_controllers](https://github.com/rail-berkeley/serl_franka_controllers). After the installation, you should be able to run the robot server, interact with the gym `franka_env` (hardware).
 
+5. **Install my_cpp_py_pkg**: (TODO cambiare nome) this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [my_cpp_py_pkg](https://github.com/claudio-dg/my_cpp_py_pkg/tree/master)
+  
 ## How to run the code
 
+
+
+## Overview and Code Structure
 HIL-SERL provides a set of common libraries for users to train RL policies for robotic manipulation tasks. The main structure of running the RL experiments involves having an actor node and a learner node, both of which interact with the robot gym environment. Both nodes run asynchronously, with data being sent from the actor to the learner node via the network using [agentlace](https://github.com/youliangtan/agentlace). The learner will periodically synchronize the policy with the actor. This design provides flexibility for parallel training and inference.
 
 <!-- <p align="center">
