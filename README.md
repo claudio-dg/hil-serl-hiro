@@ -55,6 +55,42 @@ This branch contains our own HIL-SERL implementation for UR Robot. The following
 5. **Install my_cpp_py_pkg**: (TODO cambiare nome) this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [my_cpp_py_pkg](https://github.com/claudio-dg/my_cpp_py_pkg/tree/master)
   
 ## How to run the code
+In order to Run the scripts about HIRO HIL-SERL implementation, make sure to type the following commands on the Vecow PC that already contains all the requirements.
+Firstly, you'll need several terminals: make sure to open the virtual environment cotaining the required libraries by typing:
+
+```bash
+$ source cdg_env/bin/activate
+```
+
+Then, you'll need to modify the ROS Middleware for Node communications, this enhances the performances and avoids lag issues, especially if using Mujoco's simulation:
+
+```bash
+$ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+```
+At this point you can launch the main scripts, here follows the instructions to launch the real UR robot example:
+Type this to launch the controllers and to connect with the real robot by specifying its IP address:
+
+ ```bash
+$ ros2 launch ur_hiro_bringup ur_real_bringup.launch.py robot_ip:=192.168.3.102
+```
+Launch the script to allow the communication between gym, the robot and external controllers (such as the XBOX Controller)
+
+ ```bash
+$ ros2 run my_cpp_py_pkg RealStateBridgeNode.py
+```
+Launch in a separate terminal the node to extract data from the XBOX Controller:
+
+ ```bash
+$ export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/deps/opt/ros/jazzy/lib/python3.12/site-packages
+$ ros2 run my_cpp_py_pkg UR_joystick_move.py
+```
+At this point, navigate to the [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) folder from your workspace, and launch the desired scripts.
+In order to evaluate the performances of the last pre-trained RL agent, you can type this command specyfing the specific checkpoint to evaluate:
+
+ ```bash
+$ python3 real_UR_train_rlpd.py --actor --eval-checkpoint-step:=65000
+```
+
 
 
 
