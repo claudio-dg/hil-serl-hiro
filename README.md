@@ -13,8 +13,8 @@ This branch contains our own HIL-SERL implementation for UR Robot. The following
 **Table of Contents**
 - [HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning](#serl-a-software-suite-for-sample-efficient-robotic-reinforcement-learning)
   - [Installation](#installation)
-  - [Overview and Code Structure](#overview-and-code-structure)
-  - [How to Run the code](#how_to_run_the_code)
+ <!--  - [Overview and Code Structure](#overview-and-code-structure) -->
+  <!-- - [How to Run the code](#how_to_run_the_code) -->
   <!-- - [Contribution](#contribution) -->
   - [Citation](#citation)
 
