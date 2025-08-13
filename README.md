@@ -56,6 +56,7 @@ This branch contains our own HIL-SERL implementation for UR Robot. The following
   
 ## How to run the code
 In order to Run the scripts about HIRO HIL-SERL implementation, make sure to type the following commands on the Vecow PC that already contains all the requirements.
+
 Firstly, you'll need several terminals: make sure to open the virtual environment cotaining the required libraries by typing:
 
 ```bash
@@ -68,6 +69,7 @@ Then, you'll need to modify the ROS Middleware for Node communications, this enh
 $ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ```
 At this point you can launch the main scripts, here follows the instructions to launch the real UR robot example:
+
 Type this to launch the controllers and to connect with the real robot by specifying its IP address:
 
  ```bash
@@ -85,6 +87,7 @@ $ export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/deps/opt/ros/jazzy/lib
 $ ros2 run my_cpp_py_pkg UR_joystick_move.py
 ```
 At this point, navigate to the [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) folder from your workspace, and launch the desired scripts.
+
 In order to evaluate the performances of the last pre-trained RL agent, you can type this command specyfing the specific checkpoint to evaluate:
 
  ```bash
