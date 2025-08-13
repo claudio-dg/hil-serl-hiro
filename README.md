@@ -1,27 +1,20 @@
-# HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning
-
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Static Badge](https://img.shields.io/badge/Project-Page-a)](https://hil-serl.github.io/)
-[![Discord](https://img.shields.io/discord/1302866684612444190?label=Join%20Us%20on%20Discord&logo=discord&color=7289da)](https://discord.gg/G4xPJEhwuC)
-
+# HIRO HIL-SERL Implementation : Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning
 
 ![](./docs/images/task_banner.gif)
 
 
 **Webpage: [https://hil-serl.github.io/](https://hil-serl.github.io/)**
 
-**This is the adapted version of the original repo for the Franka arm simulation. For instructions on how to run the simulated robot, please refer to the page: [Franka Simulation](/franka_sim/README.md)**
+HIL-SERL provides a set of libraries, env wrappers and examples to train RL policies using a combination of demonstrations and human corrections to perform robotic manipulation tasks with near-perfect success rates.
+This branch contains our own HIL-SERL implementation for UR Robot. The following sections describe how to use such implementation.
 
-
-HIL-SERL provides a set of libraries, env wrappers and examples to train RL policies using a combination of demonstrations and human corrections to perform robotic manipulation tasks with near-perfect success rates. The following sections describe how to use HIL-SERL. We will illustrate the usage with examples.
-
-🎬: [HIL-SERL video](https://www.youtube.com/watch?v=GuD_-zhJgbs)
+🎬:
 
 **Table of Contents**
 - [HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning](#serl-a-software-suite-for-sample-efficient-robotic-reinforcement-learning)
   - [Installation](#installation)
   - [Overview and Code Structure](#overview-and-code-structure)
-  - [Run with Franka Arm](#run-with-franka-arm)
+  - [How to Run the code](#how_to_run_the_code)
   <!-- - [Contribution](#contribution) -->
   - [Citation](#citation)
 
@@ -58,7 +51,7 @@ HIL-SERL provides a set of libraries, env wrappers and examples to train RL poli
 
 4. **Install for serl_robot_infra** Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions. This contains the instruction for installing the impendence-based [serl_franka_controllers](https://github.com/rail-berkeley/serl_franka_controllers). After the installation, you should be able to run the robot server, interact with the gym `franka_env` (hardware).
 
-## Overview and Code Structure
+## How to Run the code
 
 HIL-SERL provides a set of common libraries for users to train RL policies for robotic manipulation tasks. The main structure of running the RL experiments involves having an actor node and a learner node, both of which interact with the robot gym environment. Both nodes run asynchronously, with data being sent from the actor to the learner node via the network using [agentlace](https://github.com/youliangtan/agentlace). The learner will periodically synchronize the policy with the actor. This design provides flexibility for parallel training and inference.
 
