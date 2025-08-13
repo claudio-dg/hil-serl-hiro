@@ -75,9 +75,13 @@ from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
 from serl_launcher.networks.reward_classifier import load_classifier_func
 
 
-# recorded_demos_path = "demo_data/Z_final_my_30_demos_2025-05-20_11-54-40.pkl" #demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl
-recorded_demos_path = "demo_data/REAL_ROBOT_30_demos_2025-08-05_15-24-59.pkl" #
-trained_Ckpt_path =  "Real_robot_Training"# "1h30_training_checkpoints"
+# recorded_demos_path = "demo_data/Z_final_my_30_demos_2025-05-20_11-54-40.pkl" # SIMULAZIONE
+# recorded_demos_path = "demo_data/REAL_ROBOT_30_demos_2025-08-05_15-24-59.pkl" # REAL ROBOT
+recorded_demos_path = "demo_data/REAL_Robot_W_GRIPPER__30_demos_2025-08-11_09-52-22.pkl" # REAL ROBOT WITH GRIPPER!
+
+# trained_Ckpt_path =  "1h30_training_checkpoints"# SIMULAZIONE
+# trained_Ckpt_path =  "Real_robot_Training"# REAL ROBOT
+trained_Ckpt_path =  "3_0_Real_robot_Training_With_Gripper"# REAL ROBOT WITH GRIPPER
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
@@ -91,7 +95,7 @@ flags.DEFINE_string("checkpoint_path", trained_Ckpt_path, "Path to save checkpoi
 flags.DEFINE_string("eval_checkpoint_path", trained_Ckpt_path, "my Path to the trained checkpoints.")
 # flags.DEFINE_string("eval_checkpoint_path", partial_training_path, "my Path to the trained checkpoints.") # per testare ckpt trainato
 flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint.")
-flags.DEFINE_integer("eval_n_trajs", 200, "Number of trajectories to evaluate.")
+flags.DEFINE_integer("eval_n_trajs", 20, "Number of trajectories to evaluate.")
 flags.DEFINE_boolean("save_video", False, "Save video.")
 
 flags.DEFINE_boolean(
@@ -534,28 +538,37 @@ def main(_):
                 key=jax.random.PRNGKey(0),
                 sample=env.observation_space.sample(),
                 image_keys=image_keys,
-                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"),
+                # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"),  # Checkpoint del classifier addestrato senza gripper
+                # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper/"), # CON GRIPPER
+                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info con scatola ROTTA condizioni recenti 12 AGOSTO
             )
 
             def reward_func(obs, info):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
                 pred = sigmoid(classifier(obs))
-                if int(pred[0] > 0.75):  #### scatola rovinata.. abbasso threshold da 0.85 a 0.75                  
+                if int(pred[0] > 0.80):  #### scatola rovinata.. abbasso threshold da 0.85 a 0.75                  
                     print_green(f"prediction del classifier = {sigmoid(classifier(obs))}")
                 else:
                     print_blue(f"prediction del classifier = {sigmoid(classifier(obs))}")
 
-                if (info["is_low_enough"]):                    
-                    print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
-                else:
-                    print_blue(f"TCP < 0,26 = {info["is_low_enough"]}")
+                # if (info["is_low_enough"]):                    
+                    # print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
+                # else:
+                    # print_blue(f"TCP < 0,26 = {info["is_low_enough"]}")
 
-                return int(pred[0] > 0.75 and info["is_low_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+                if (info["is_high_enough"]):                    
+                    print_green(f"TCP > 0,40 = {info["is_high_enough"]}")
+                else:
+                    print_blue(f"TCP > 0,40 = {info["is_high_enough"]}")
+
+                # return int(pred[0] > 0.75 and info["is_low_enough"]) #
+                return int(pred[0] > 0.80 and info["is_high_enough"]) # 
+                # return int(pred[0] > 0.85 )
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
     ################################################################################################################################ 
     
-    env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
+    env = UR_GripperPenaltyWrapper(env, penalty= 0.055) # aggiunge penalty per il gripper (provo altissimo = 0,055)
     # wrapper del trainer
     env = RecordEpisodeStatistics(env)
 

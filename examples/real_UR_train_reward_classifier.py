@@ -120,7 +120,7 @@ def main(_):
         include_label=True,
     )
 
-    success_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Real_Robot/succ", "*success*.pkl"))
+    success_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Real_Robot_Gripper/succ", "*success*.pkl"))
     print(f"success paths: {success_paths}")
     for path in success_paths:
         success_data = pkl.load(open(path, "rb"))
@@ -154,7 +154,7 @@ def main(_):
         capacity=50000,
         include_label=True,
     )
-    failure_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Real_Robot/fails", "*failure*.pkl"))
+    failure_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Real_Robot_Gripper/fails", "*failure*.pkl"))
     for path in failure_paths:
         failure_data = pkl.load(
             open(path, "rb")
@@ -268,7 +268,7 @@ def main(_):
         )
 
     checkpoints.save_checkpoint(
-        os.path.join(os.getcwd(), "classifier_ckpt/Real_robot/"),
+        os.path.join(os.getcwd(), "classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"),
         classifier,
         step=FLAGS.num_epochs,
         overwrite=True,

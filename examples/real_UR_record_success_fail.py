@@ -40,7 +40,7 @@ def print_boh(x):
     return print("\033[95m {}\033[00m".format(x))
 
 FLAGS = flags.FLAGS # original succ = 200
-flags.DEFINE_integer("successes_needed", 100, "Number of successful transistions to collect.")
+flags.DEFINE_integer("successes_needed", 150, "Number of successful transistions to collect.")
 proprio_keys = ["tcp_pose", "gripper_pose"] 
 # proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
@@ -94,7 +94,7 @@ def main(_):
     print("press enter to record a successful transition.\n")
     
     # while len(successes) < success_needed:            ###### To record SUCCESSES 
-    while len(failures) < 125:                          ###### To record FAILURES 
+    while len(failures) < 400:                          ###### To record FAILURES 
         # if start_key:
         #############################################
         actions = np.zeros(4) # fake policy di zeri
@@ -137,6 +137,7 @@ def main(_):
                 print_green(f"FAIL N° {failure_count/2} ")
                 # print(f" *** Transition OBS STATE: {transition['observations']['state']}")
                 # print(failure_count)
+                print_boh(f"filures_len = {len(failures)}")
 
 
         # commento reset al done tanto qui non serve in teoria
@@ -154,15 +155,31 @@ def main(_):
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"./classifier_data/succ/ZZZ_TestSet_REAL_Mounted_{success_needed}_success_images_{uuid}.pkl"
+    file_name = f"./classifier_data/succ/A_EXTRA_Real_W_GripperMounted_{success_needed}_success_images_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(successes, f)
         print(f"saved {success_needed} successful transitions to {file_name}")
 
-    file_name = f"./classifier_data/fails/ZZZ_TestSet_REAL_Mounted_{uuid}.pkl"
+    file_name = f"./classifier_data/fails/A_EXTRA_Real_W_GripperMounted_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(failures, f)
         print(f"saved {len(failures)} failure transitions to {file_name}")
         
 if __name__ == "__main__":
     app.run(main)
+
+
+
+
+
+
+
+
+####################################################################################################
+####################################################################################################
+                                        # 8 AGOSTO
+# altezza di Success Cubo faccio intorno a 0.38 ( leggermente più basso di h spawn che è 0.43)
+
+
+####################################################################################################
+####################################################################################################

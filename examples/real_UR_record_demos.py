@@ -177,7 +177,9 @@ def main(_):
                 key=jax.random.PRNGKey(0),
                 sample=env.observation_space.sample(),
                 image_keys=classifier_keys,
-                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"),
+                # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"), # SENZA GRIPPER
+                # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper/"), # CON GRIPPER
+                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info con scatola ROTTA condizioni recenti 12 AGOSTO
             )
 
             def reward_func(obs, info):
@@ -188,24 +190,22 @@ def main(_):
                 else:
                     print_boh(f"prediction del classifier = {sigmoid(classifier(obs))}")
 
-                if (info["is_low_enough"]):                    
-                    print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
-                else:
-                    print_boh(f"TCP < 0,26 = {info["is_low_enough"]}")
+                ######## SENZA GRIPPER --> LOW ENOUGH
+                # if (info["is_low_enough"]):                    
+                    # print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
+                # else:
+                    # print_boh(f"TCP < 0,26 = {info["is_low_enough"]}")
 
-                return int(pred[0] > 0.85 and info["is_low_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
-                # return int(sigmoid(classifier(obs)) > 0.7) 
-                ### per ora provo a tralasciaire condizione AND robot poi vediamo
-                # return int(sigmoid(classifier(obs)) > 0.7 and obs["state"][0, 0] > 0.4)
-                # oltre a true/false del classificatore mette in AND controlllo su qualche posizione, non so quale sia esattamente
-                # potrebbe essere fatto che gripper chiuso o ad esempio, come può essuere utile nel mio caso
-                # che la Z del robot sia oltre un certo valore --> così torna true solo se 
-                # sia immagine sia pos robot danno TRUE!
+                return int(pred[0] > 0.99) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+                # return int(pred[0] > 0.85 and info["is_low_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+
+
+                ##### CON GRIPPER HIGH ENOUGH SERVE? VEDIAMO
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
     ################################################################################################################################
    
-    env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
+    env = UR_GripperPenaltyWrapper(env, penalty= 0.015) # aggiunge penalty per il gripper
    
 
     ros_node.reset_cmd()     # Reset the recorder node
