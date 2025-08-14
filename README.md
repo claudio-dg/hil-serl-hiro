@@ -1,4 +1,4 @@
-# HIRO HIL-SERL Implementation : Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning
+x# HIRO HIL-SERL Implementation : Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning
 
 <!-- ![](./docs/images/short-UR2-Realizzato-con-Clipchamp.gif) -->
 <img src="./docs/images/short-UR2-Realizzato-con-Clipchamp.gif" width="200">
@@ -86,6 +86,13 @@ Launch in a separate terminal the node to extract data from the XBOX Controller:
 $ export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/deps/opt/ros/jazzy/lib/python3.12/site-packages
 $ ros2 run my_cpp_py_pkg UR_joystick_move.py
 ```
+The following image briefly explains how to use the controller to move the robot. Please note that, for simplicity, it is only possible to move the robot's end effector, but not to rotate it.
+
+<p align="center">
+  <img src="./docs/images/joystick.png" width="300">
+</p>
+
+
 At this point, navigate to the [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) folder from your workspace, and launch the desired scripts.
 
 In order to evaluate the performances of the last pre-trained RL agent, you can type this command specyfing the specific checkpoint to evaluate:
