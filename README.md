@@ -93,9 +93,9 @@ The following image briefly explains how to use the controller to move the robot
 </p>
 
 
-At this point, navigate to the [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) folder from your workspace, and launch the desired scripts.
+At this point, navigate to the [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) folder from your workspace, and launch the desired scripts for training, collecting data or evaluating checkpoints.
 
-In order to evaluate the performances of the last pre-trained RL agent, you can type this command specyfing the specific checkpoint to evaluate:
+For instance, in order to evaluate the performances of the last pre-trained RL agent, you can type this command specyfing the specific checkpoint to evaluate:
 
  ```bash
 $ python3 real_UR_train_rlpd.py --actor --eval-checkpoint-step:=65000
