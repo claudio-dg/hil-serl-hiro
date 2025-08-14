@@ -89,7 +89,7 @@ $ ros2 run my_cpp_py_pkg UR_joystick_move.py
 The following image briefly explains how to use the controller to move the robot. Please note that, for simplicity, it is only possible to move the robot's end effector, but not to rotate it.
 
 <p align="center">
-  <img src="./docs/images/joystick.png" width="300">
+  <img src="./docs/images/joystick.png" width="550">
 </p>
 
 
