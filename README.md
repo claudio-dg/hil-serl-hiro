@@ -1,4 +1,4 @@
-x# HIRO HIL-SERL Implementation : Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning
+# HIRO HIL-SERL Implementation : Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning
 
 <!-- ![](./docs/images/short-UR2-Realizzato-con-Clipchamp.gif) -->
 <img src="./docs/images/short-UR2-Realizzato-con-Clipchamp.gif" width="200">
