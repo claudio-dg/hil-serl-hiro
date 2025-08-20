@@ -115,17 +115,17 @@ HIL-SERL provides a set of common libraries for users to train RL policies for r
 
 | Code Directory | Description |
 | --- | --- |
-| [examples](https://github.com/rail-berkeley/hil-serl/blob/main/examples) | Scripts for policy training, demonstration data collection, reward classifier training |
-| [serl_launcher](https://github.com/rail-berkeley/hil-serl/blob/main/serl_launcher) | Main code for HIL-SERL |
-| [serl_launcher.agents](https://github.com/rail-berkeley/hil-serl/blob/main/serl_launcher/serl_launcher/agents/) | Agent Policies (e.g. SAC, BC) |
-| [serl_launcher.wrappers](https://github.com/rail-berkeley/hil-serl/blob/main/serl_launcher/serl_launcher/wrappers) | Gym env wrappers |
-| [serl_launcher.data](https://github.com/rail-berkeley/hil-serl/blob/main/serl_launcher/serl_launcher/data) | Replay buffer and data store |
-| [serl_launcher.vision](https://github.com/rail-berkeley/hil-serl/blob/main/serl_launcher/serl_launcher/vision) | Vision related models and utils |
+| [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) | Scripts for policy training, demonstration data collection, reward classifier training |
+| [serl_launcher](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher) | Main code for HIL-SERL |
+| [serl_launcher.agents](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/agents) | Agent Policies (e.g. SAC, BC) |
+| [serl_launcher.wrappers](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/wrappers) | Gym env wrappers |
+| [serl_launcher.data](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/data) | Replay buffer and data store |
+| [serl_launcher.vision](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/vision) | Vision related models and utils |
 | [serl_robot_infra](./serl_robot_infra/) | Robot infra for running with real robots |
-| [serl_robot_infra.robot_servers](https://github.com/rail-berkeley/hil-serl/blob/main/serl_robot_infra/robot_servers/) | Flask server for sending commands to robot via ROS |
-| [serl_robot_infra.franka_env](https://github.com/rail-berkeley/hil-serl/blob/main/serl_robot_infra/franka_env/) | Gym env for Franka robot |
+| [serl_robot_infra.franka_env](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_robot_infra/franka_env) (TODO camb nome) | Utils and wrappers for UR robot env |
 
-## Run with Franka Arm
+## XXX 
+<!-- ## Run with Franka Arm
 
 We provide a step-by-step guide to run RL policies with HIL-SERL on a Franka robot.
 
@@ -133,7 +133,7 @@ Check out the [Run with Franka Arm](/docs/franka_walkthrough.md)
  - [RAM Insertion](/docs/franka_walkthrough.md#1-ram-insertion)
  - [USB Pickup and Insertion](/docs/real_franka.md#2-usb-pick-up-and-insertion)
  - [Object Handover](/docs/real_franka.md#3-object-handover)
- - [Egg Flip](/docs/real_franka.md#4-egg-flip)
+ - [Egg Flip](/docs/real_franka.md#4-egg-flip)-->
 
 <!-- ## Contribution
 
