@@ -120,9 +120,6 @@ The following table shows the key files of this repo:
 | [serl_robot_infra.franka_env](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_robot_infra/franka_env) (**TODO** camb nome) | Utils and wrappers for UR robot env |
 | [ur_hiro_sim](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/ur_hiro_sim/ur_hiro_sim) | **Base Generic** ROS Gym environments for [Mujoco](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/ur_hiro_sim/ur_hiro_sim/ROS_mujoco_gym_env.py) and [Real Robot](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/ur_hiro_sim/ur_hiro_sim/Real_ROS_gym_env.py) |
 | [ur_hiro_sim.envs](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/ur_hiro_sim/ur_hiro_sim/envs) | **Task specific** ROS Gym environments |
-| ur_hiro_sim. | Robot infra for running with real robots |
-| ur_hiro_sim. | Robot infra for running with real robots |
-| ur_hiro_sim. | Robot infra for running with real robots |
 
 ## Citation
 
