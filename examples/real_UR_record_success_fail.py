@@ -15,7 +15,8 @@ from std_srvs.srv import Trigger
 
 ########### gym environment ###########
 # from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
-from ur_hiro_sim.envs.TestCamera_Ros_UR_PickCube_gym_env import Real_URPickRosEnv
+# from ur_hiro_sim.envs.Real_URPickRosEnv import Real_URPickRosEnv
+from ur_hiro_sim.envs.Real_UR_Unscrewing_RosEnv import Real_UR_Unscrewing_RosEnv
 
 ########### SERL wrappers ###########
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
@@ -40,7 +41,7 @@ def print_boh(x):
     return print("\033[95m {}\033[00m".format(x))
 
 FLAGS = flags.FLAGS # original succ = 200
-flags.DEFINE_integer("successes_needed", 150, "Number of successful transistions to collect.")
+flags.DEFINE_integer("successes_needed", 75, "Number of successful transistions to collect.")
 proprio_keys = ["tcp_pose", "gripper_pose"] 
 # proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
@@ -70,7 +71,7 @@ def main(_):
     #####################ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
     #####################ros_thread.start()
 
-    env = Real_URPickRosEnv() # URPickRosEnv
+    env = Real_UR_Unscrewing_RosEnv() # Real_URPickRosEnv() # URPickRosEnv
     env = JoystickInterventionWrapper(env) 
 
     # add wrappers
@@ -79,7 +80,7 @@ def main(_):
     # commento SerloBs per testare senzxa immagini senno sto wrapper credo generi errore
     env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
-    env = UR_GripperPenaltyWrapper(env, penalty=-0.02) # aggiunge penalty per il gripper
+    # env = UR_GripperPenaltyWrapper(env, penalty=0.1) # aggiunge penalty per il gripper
    
 
     #####################ros_node.reset_cmd()  # Reset the recorder node
@@ -94,7 +95,7 @@ def main(_):
     print("press enter to record a successful transition.\n")
     
     # while len(successes) < success_needed:            ###### To record SUCCESSES 
-    while len(failures) < 400:                          ###### To record FAILURES 
+    while len(failures) < 150:                          ###### To record FAILURES 
         # if start_key:
         #############################################
         actions = np.zeros(4) # fake policy di zeri
@@ -117,6 +118,9 @@ def main(_):
                 dones=done,
             )
             )
+
+        # print_green(f" *** Transition OBS STATE: {transition['observations']['state'][0,0:9]}")
+
         obs = next_obs
         if success_key:
             successes.append(transition)
@@ -129,24 +133,20 @@ def main(_):
                 # env.reset()
                 # ros_node.reset_cmd() 
                 # pass
+
+            # AGGIUNGO ATTESA 10 secondi alla pressione per caso raccolta failures, così premo invio  e poi ho 10 sec per spostare il tutto prima che ricominci a registrare
+            time.sleep(10) 
+        
         else:
             failure_count += 1 
             # Register 1 failure transition per TOT steps
-            if failure_count % 2 == 0:
+            if failure_count % 6 == 0:
                 failures.append(transition)
-                print_green(f"FAIL N° {failure_count/2} ")
+                print_green(f"FAIL N° {failure_count/6} ")
                 # print(f" *** Transition OBS STATE: {transition['observations']['state']}")
                 # print(failure_count)
                 print_boh(f"filures_len = {len(failures)}")
 
-
-        # commento reset al done tanto qui non serve in teoria
-        # if done or truncated:
-            # obs, _ = env.reset() # gym's reset
-            # #############################################ros_node.reset_cmd()  # Reset the recorder node
-
-        # if len(successes) >= success_needed:
-        #     break
 
         # Sleep for 1 second
         # time.sleep(0.05) ### original
@@ -155,31 +155,15 @@ def main(_):
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"./classifier_data/succ/A_EXTRA_Real_W_GripperMounted_{success_needed}_success_images_{uuid}.pkl"
+    file_name = f"./classifier_data/succ/EXTRA_STORTO_Wsized_TEST_SCREWDRIVER_IMG_{success_needed}_success_images_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(successes, f)
         print(f"saved {success_needed} successful transitions to {file_name}")
 
-    file_name = f"./classifier_data/fails/A_EXTRA_Real_W_GripperMounted_{uuid}.pkl"
+    file_name = f"./classifier_data/fails/Wsized_75Bug_TEST_SCREWDRIVER_IMG_failure_imgs_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(failures, f)
         print(f"saved {len(failures)} failure transitions to {file_name}")
         
 if __name__ == "__main__":
     app.run(main)
-
-
-
-
-
-
-
-
-####################################################################################################
-####################################################################################################
-                                        # 8 AGOSTO
-# altezza di Success Cubo faccio intorno a 0.38 ( leggermente più basso di h spawn che è 0.43)
-
-
-####################################################################################################
-####################################################################################################

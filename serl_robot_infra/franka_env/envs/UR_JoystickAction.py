@@ -91,11 +91,11 @@ class JoystickInterventionWrapper(gym.ActionWrapper):
         action[3] = self.gripper_command.data
         
         ####################################################################################################################
-        ################# per fase finale del training provo a forzare chiuso quando iput joystick=RT=SALI #################
+        ############ per fase finale del training pick_cube provo a forzare chiuso quando iput joystick=RT=SALI ############
         # altrimenti non riesco a fare fare step finale al robot perchè mandando SALI mando sempre anche apertura gripper
         
-        # if self.offset_data.z >= 0.05:
-            # action[3] = 239.0
+        # if self.offset_data.z >= 0.01:
+        #     action[3] = 239.0
 
         ####################################################################################################################
         ####################################################################################################################
@@ -149,9 +149,15 @@ class JoystickInterventionWrapper(gym.ActionWrapper):
         # print_green(f"[DEBUG] AZIONE POLICY PUBBLICATA: {fixPolicy_action}")
 
         # re-inserisco cut policy action x test robot reale
-        fixPolicy_action[0] *= 0.35
-        fixPolicy_action[1] *= 0.35
-        fixPolicy_action[2] *= 0.35
+        # fixPolicy_action[0] *= 0.35
+        # fixPolicy_action[1] *= 0.35
+        # fixPolicy_action[2] *= 0.35
+
+        # prova avvitatore
+        fixPolicy_action[0] *= 0.05
+        fixPolicy_action[1] *= 0.05 #### NOTA questi : modificano solo della policy non del joystic
+        fixPolicy_action[2] *= 0.05 #### joystsick modifico da script jouìystick
+        print_orange(f"[DEBUG] AZIONE POLICY PUBBLICATA: {fixPolicy_action}")
 
         return fixPolicy_action, False
  

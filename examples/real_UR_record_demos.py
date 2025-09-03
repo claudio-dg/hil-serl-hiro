@@ -14,8 +14,10 @@ import threading
 from std_srvs.srv import Trigger 
 
 ########### gym environment ###########
-# from ur_hiro_sim.envs.Ros_UR_PickCube_gym_env import URPickRosEnv
-from ur_hiro_sim.envs.TestCamera_Ros_UR_PickCube_gym_env import Real_URPickRosEnv
+# from ur_hiro_sim.envs.Real_URPickRosEnv import Real_URPickRosEnv
+from ur_hiro_sim.envs.Real_UR_Unscrewing_RosEnv import Real_UR_Unscrewing_RosEnv
+
+
 
 ########### SERL wrappers ###########
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
@@ -48,121 +50,122 @@ print("PYTHONPATH:", os.environ.get("PYTHONPATH"))
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_integer("successes_needed", 30, "Number of successful demos to collect.")
-proprio_keys = ["tcp_pose", "gripper_pose"] 
-# proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] ] 
+flags.DEFINE_integer("successes_needed", 20, "Number of successful demos to collect.")
+# proprio_keys = ["tcp_pose", "gripper_pose"] 
+proprio_keys = ["tcp_pose", "tcp_ft", "gripper_pose"] 
 
-class DemoRecorderNode(Node):
-    def __init__(self):
-        super().__init__('provo_real_demo_recorder_node')
+# class DemoRecorderNode(Node):
+#     def __init__(self):
+#         super().__init__('provo_real_demo_recorder_node')
 
-        # Reset service to reset gripper commands externally (GUI) coherently to gym's reset
-        # TODO: implement service call in complex.cc to reset from GUI
-        # self.create_service(Trigger, 'reset_recorder', self.reset_callback)
+#         # Reset service to reset gripper commands externally (GUI) coherently to gym's reset
+#         # TODO: implement service call in complex.cc to reset from GUI
+#         # self.create_service(Trigger, 'reset_recorder', self.reset_callback)
 
-        # Subscriber to 'controller_intervention_offset' topic to receive joystick offsets
-        self.offset_subscriber = self.create_subscription(
-            Vector3,
-            'controller_intervention_offset',
-            self.offset_callback,
-            10
-        )
+#         # Subscriber to 'controller_intervention_offset' topic to receive joystick offsets
+#         self.offset_subscriber = self.create_subscription(
+#             Vector3,
+#             'controller_intervention_offset',
+#             self.offset_callback,
+#             10
+#         )
 
-        # Subscriber to 'controller_intervention_gripper' topic to receive joystick gripper commands
-        self.gripper_subscriber = self.create_subscription(
-            Float64,
-            'controller_intervention_gripper',
-            self.gripper_callback,
-            10
-        )
+#         # Subscriber to 'controller_intervention_gripper' topic to receive joystick gripper commands
+#         self.gripper_subscriber = self.create_subscription(
+#             Float64,
+#             'controller_intervention_gripper',
+#             self.gripper_callback,
+#             10
+#         )
 
-        # variables to store received inputs  
-        self.offset_data = Vector3()
-        self.gripper_data = Float64()
-        self.last_action = np.zeros(4)       
-        self.identical_action_count = 0  # count of action repetitions due to synchronization
+#         # variables to store received inputs  
+#         self.offset_data = Vector3()
+#         self.gripper_data = Float64()
+#         self.last_action = np.zeros(4)       
+#         self.identical_action_count = 0  # count of action repetitions due to synchronization
 
-        self.data_lock = threading.Lock()
+#         self.data_lock = threading.Lock()
 
 
-    def offset_callback(self, msg):
-        """Callback per il topic 'controller_intervention_offset'."""
-        with self.data_lock:
-            self.offset_data = msg
-        # self.get_logger().info(f"Ricevuto offset: {msg}")
+#     def offset_callback(self, msg):
+#         """Callback per il topic 'controller_intervention_offset'."""
+#         with self.data_lock:
+#             self.offset_data = msg
+#         # self.get_logger().info(f"Ricevuto offset: {msg}")
 
-    def gripper_callback(self, msg):
-        """Callback per il topic 'mujoco_ros/gripper_command'."""
-        with self.data_lock:
-            self.gripper_data = msg
-        self.get_logger().info(f"Ricevuto comando gripper: {msg}")
+#     def gripper_callback(self, msg):
+#         """Callback per il topic 'mujoco_ros/gripper_command'."""
+#         with self.data_lock:
+#             self.gripper_data = msg
+#         self.get_logger().info(f"Ricevuto comando gripper: {msg}")
 
-    def get_joystick_action(self):
-        """Restituisce i dati ricevuti dai subscriber come array NumPy."""
-        with self.data_lock:
-            # convert joystick data into a numpy array
-            action = np.zeros(4) 
-            action[0] = self.offset_data.x
-            action[1] = self.offset_data.y
-            action[2] = self.offset_data.z
-            action[3] = self.gripper_data.data
+#     def get_joystick_action(self):
+#         """Restituisce i dati ricevuti dai subscriber come array NumPy."""
+#         with self.data_lock:
+#             # convert joystick data into a numpy array
+#             action = np.zeros(4) 
+#             action[0] = self.offset_data.x
+#             action[1] = self.offset_data.y
+#             action[2] = self.offset_data.z
+#             action[3] = self.gripper_data.data
 
-            ###### agguingo qua il cap delle azioni che nel succ/fail faccio nel joystickWrapper
-            action[0] *= 0.35
-            action[1] *= 0.35
-            action[2] *= 0.35
+#             ###### agguingo qua il cap delle azioni che nel succ/fail faccio nel joystickWrapper
+#             action[0] *= 0.35
+#             action[1] *= 0.35
+#             action[2] *= 0.35
 
-             # Check if offsets are repeated
-            if np.array_equal(action[:3], self.last_action[:3]):
-                self.identical_action_count += 1
-            else:
-                self.identical_action_count = 0
+#              # Check if offsets are repeated
+#             if np.array_equal(action[:3], self.last_action[:3]):
+#                 self.identical_action_count += 1
+#             else:
+#                 self.identical_action_count = 0
 
-            # Set offsets to zero if the same action is repeated for 5 consecutive steps
-            if self.identical_action_count >= 5:
-                action[:3] = np.zeros(3)
-            else:
-                self.last_action[:3] = action[:3]
-            # self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
-        return action
+#             # Set offsets to zero if the same action is repeated for 5 consecutive steps
+#             if self.identical_action_count >= 5:
+#                 action[:3] = np.zeros(3)
+#             else:
+#                 self.last_action[:3] = action[:3]
+#             # self.get_logger().info(f"Action: {action}, Identical Count: {self.identical_action_count}")
+#         return action
     
 
-    def reset_cmd(self):
-        """funzione per resettare lo stato del nodo RecorderNode internamente."""
+#     def reset_cmd(self):
+#         """funzione per resettare lo stato del nodo RecorderNode internamente."""
 
-        self.gripper_data.data = 0.0  # Reset gripper command
-        self.offset_data = Vector3()  # Resetta offsets
-        self.last_action = np.zeros(4)  # Resetta last action
-        self.identical_action_count = 0  # Reset counter
+#         self.gripper_data.data = 0.0  # Reset gripper command
+#         self.offset_data = Vector3()  # Resetta offsets
+#         self.last_action = np.zeros(4)  # Resetta last action
+#         self.identical_action_count = 0  # Reset counter
 
-    def reset_callback(self, request, response):
-        """Callback per resettare lo stato del nodo RecorderNode esternamente (es: da GUI)."""
+#     def reset_callback(self, request, response):
+#         """Callback per resettare lo stato del nodo RecorderNode esternamente (es: da GUI)."""
 
-        self.reset_cmd()
-        response.success = True
-        response.message = "RecorderNode stato resettato con successo."
-        self.get_logger().info("Reset del nodo RecorderNode completato.")
+#         self.reset_cmd()
+#         response.success = True
+#         response.message = "RecorderNode stato resettato con successo."
+#         self.get_logger().info("Reset del nodo RecorderNode completato.")
 
-        return response
+#         return response
 
 def main(_):
 
     rclpy.init()
     # Create ROS Node
-    ros_node = DemoRecorderNode()
+    # ros_node = DemoRecorderNode()
     # Start Ros Node on separate thread 
-    ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
-    ros_thread.start()
+    # ros_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
+    # ros_thread.start()
 
     #########
     use_trained_reward_classifier = True
     classifier_keys = ["my_realsense","my_basler"]
     #########
-    env = Real_URPickRosEnv() 
+    env = Real_UR_Unscrewing_RosEnv() 
+    # env = Real_URPickRosEnv() 
 
 
 ################################ solo per testare.. per fare raccolta dati direi che conviene altro metodo del joystick diretto con Recorder Node
-    # env = JoystickInterventionWrapper(env) 
+    env = JoystickInterventionWrapper(env) #perchè questo metodo salva un sacco di zeri..però demorecorder su realrobot mi pare lagghi troppo e impossibile centrare vite
 ################################
 
     # add wrappers
@@ -179,36 +182,38 @@ def main(_):
                 image_keys=classifier_keys,
                 # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"), # SENZA GRIPPER
                 # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper/"), # CON GRIPPER
-                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info con scatola ROTTA condizioni recenti 12 AGOSTO
-            )
-
+                # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info con scatola ROTTA condizioni recenti 12 AGOSTO
+                
+                
+                # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore/"), # mini test avvitatore
+                # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore_FineTuned_1Settembre_/"), #
+                # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore_Sec_FineTuned_2Settembre_/"), # LASCO MA BUONO! FATTO TRAININ "FUNZIONANTE" CON QUESTO ckpt : Avvitatore_rlpd_training_1st_Test
+                checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"), #
+            ) 
             def reward_func(obs, info):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
                 pred = sigmoid(classifier(obs))
-                if int(pred[0] > 0.85):                    
+                if int(pred[0] > 0.80):                    
                     print_green(f"prediction del classifier = {sigmoid(classifier(obs))}")
                 else:
                     print_boh(f"prediction del classifier = {sigmoid(classifier(obs))}")
 
-                ######## SENZA GRIPPER --> LOW ENOUGH
-                # if (info["is_low_enough"]):                    
-                    # print_green(f"TCP < 0,26 = {info["is_low_enough"]}")
-                # else:
-                    # print_boh(f"TCP < 0,26 = {info["is_low_enough"]}")
+                ######## AVVITATORE INSERTED ENOUGH tramite forza y (test)
+                if (info["is_inserted_enough"]):                    
+                    print_green(f"Y FORCE < -1 = {info["is_inserted_enough"]}")
+                else:
+                    print_boh(f"Y FORCE < -1  = {info["is_inserted_enough"]}")
 
-                return int(pred[0] > 0.99) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
-                # return int(pred[0] > 0.85 and info["is_low_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
-
-
-                ##### CON GRIPPER HIGH ENOUGH SERVE? VEDIAMO
+                # return int(pred[0] > 0.95) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+                return int(pred[0] > 0.99 and info["is_inserted_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
     ################################################################################################################################
    
-    env = UR_GripperPenaltyWrapper(env, penalty= 0.015) # aggiunge penalty per il gripper
+    # env = UR_GripperPenaltyWrapper(env, penalty= 0.015) # aggiunge penalty per il gripper
    
 
-    ros_node.reset_cmd()     # Reset the recorder node
+    # ros_node.reset_cmd()     # Reset the recorder node
     obs, info = env.reset()  # Gym's reset
     # print("Osservazione restituita da env.reset():", obs)
 
@@ -222,9 +227,9 @@ def main(_):
     
     while success_count < success_needed:
     
-        actions = ros_node.get_joystick_action()
+        # actions = ros_node.get_joystick_action()
         # print("ACTIONS = ", actions)
-        # actions = np.zeros(4) # fake policy di zeri
+        actions = np.zeros(4) # fake policy di zeri
 
         next_obs, rew, done, truncated, info = env.step(actions)
         # print("Osservazione restituita da env.step():", next_obs)
@@ -262,9 +267,9 @@ def main(_):
         obs = next_obs
         if done:
             if info["succeed"]:
-                for transition in trajectory:
-                    transitions.append(copy.deepcopy(transition))
-                success_count += 1
+                for transition in trajectory: #############################
+                    transitions.append(copy.deepcopy(transition)) #############################
+                success_count += 1 #############################
                 print_green(f"Success count: {success_count}")
                 pbar.update(1)
             else:
@@ -272,7 +277,7 @@ def main(_):
             trajectory = []
             returns = 0           
             obs, info = env.reset()
-            ros_node.reset_cmd()
+            # ros_node.reset_cmd()
             #####################
         # time.sleep(0.05) # diminuire il n di step
         time.sleep(0.2) ### provo a diminuire freq step robot reale..
@@ -285,7 +290,7 @@ def main(_):
         os.makedirs("./demo_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # file_name = f"./demo_data/{FLAGS.exp_name}_{success_needed}_demos_{uuid}.pkl"
-    file_name = f"./demo_data/NO_PROTECTION_{success_needed}_demos_{uuid}.pkl"
+    file_name = f"./demo_data/avvitatore_{success_needed}_demos_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(transitions, f)
         print(f"saved {success_needed} demos to {file_name}")

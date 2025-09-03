@@ -40,18 +40,19 @@ from gymnasium.spaces import flatten_space, Dict, Box
 
 FLAGS = flags.FLAGS
 # flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
-flags.DEFINE_integer("num_epochs", 150, "Number of training epochs.")
-flags.DEFINE_integer("batch_size", 256, "Batch size.")
+flags.DEFINE_integer("num_epochs", 200, "Number of training epochs.")# original 150-- avvitatore -Z 200
+# flags.DEFINE_integer("batch_size", 256, "Batch size.")
+flags.DEFINE_integer("batch_size", 128, "Batch size.") # provo a diminuire per caso avvitatore che crasha
 
 ######### HARD CODED ENV. Configuration values #########
 proprio_keys = ["tcp_pose", "gripper_pose"] 
-
+# proprio_keys = ["tcp_pose", "tcp_ft", "gripper_pose"]  # provo a mettere anche ft
 # classifier_keys = ["right"]
 # classifier_keys = ["front", "wrist"]
 classifier_keys = ["my_realsense","my_basler"]
 
-height: int = 128 # 240
-width: int = 128 # 320
+height: int = 512#128 # 240
+width: int = 512#128 # 320
 
 action_space = spaces.Box(
             low=np.asarray([-1.0, -1.0, -1.0, -1.0]), # x y z traslation + gripper = 4
@@ -76,12 +77,7 @@ image_space = spaces.Dict(
         "my_realsense": spaces.Box(
                                 low=0,
                                 high=255,
-                                shape=(1,height, width, 3),  ######### modificato qua e va??? WTF??? ho aggoiunto 1 all'inizio
-                                # secondo me viene giusto perchè la dimensione giusta deve essewre effetticamente con 5 simensioni
-                                # B T H W C.. ma sto uno a caso secondo me è sbagliato.. perchè obs space non dovrebbe avarlo...
-                                # provare un modo sensato per far venire quello stack a 2?
-                                # TEST 1 --Z> vedere se il ckpoint trainato fa qualcosa di sensato -> Si,  TOP
-                                
+                                shape=(1,height, width, 3),  ######### modificato qua 
                                 #### NOTA #### --> giusto mettere 1 qua !!
                                 # Forse perchè effettivamente chunkWrapper modifica Obs_space aggiungendo batch size, e quindi il env.obs_space che
                                 # loro prendono in questo script effettivamente ha il batch size = 1 iniziale!!! STO HARD CODDANDO LA COSA...
@@ -120,7 +116,7 @@ def main(_):
         include_label=True,
     )
 
-    success_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Real_Robot_Gripper/succ", "*success*.pkl"))
+    success_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Avvitatore_well_resized/succ", "*success*.pkl"))
     print(f"success paths: {success_paths}")
     for path in success_paths:
         success_data = pkl.load(open(path, "rb"))
@@ -131,13 +127,7 @@ def main(_):
 
             trans["labels"] = 1
             trans['actions'] = action_space.sample()
-###################################################################
-            # # FIX: Rimuovi la dimensione batch se presente
-            # for k in ["my_basler", "my_realsense"]:
-            #     img = trans["observations"][k]
-            #     if img.shape[0] == 1 and img.ndim == 4:
-            #         trans["observations"][k] = img[0]
-###################################################################
+
             pos_buffer.insert(trans)
             
     pos_iterator = pos_buffer.get_iterator(
@@ -154,7 +144,7 @@ def main(_):
         capacity=50000,
         include_label=True,
     )
-    failure_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Real_Robot_Gripper/fails", "*failure*.pkl"))
+    failure_paths = glob.glob(os.path.join(os.getcwd(), "classifier_data/Avvitatore_well_resized/fails", "*failure*.pkl"))
     for path in failure_paths:
         failure_data = pkl.load(
             open(path, "rb")
@@ -165,19 +155,10 @@ def main(_):
                 continue
             trans["labels"] = 0
             trans['actions'] = action_space.sample()
-###################################################################
-            # FIX: Rimuovi la dimensione batch se presente
-            # for k in ["my_basler", "my_realsense"]:
-            #     img = trans["observations"][k]
-            #     if img.shape[0] == 1 and img.ndim == 4:
-            #         trans["observations"][k] = img[0]
-###################################################################
             # print_boh(f"Shape delle immagini BAS: {trans["observations"]["my_basler"].shape} ")
             # print_boh(f"Shape delle immagini Realsense: {trans["observations"]["my_realsense"].shape} ")
 
             neg_buffer.insert(trans)
-            # print_green(f" \n \n AAAAAAAAAAAAAAAAAAAAAAAAAAA ")
-
             
     neg_iterator = neg_buffer.get_iterator(
         sample_args={
@@ -268,7 +249,7 @@ def main(_):
         )
 
     checkpoints.save_checkpoint(
-        os.path.join(os.getcwd(), "classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"),
+        os.path.join(os.getcwd(), "classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"),
         classifier,
         step=FLAGS.num_epochs,
         overwrite=True,

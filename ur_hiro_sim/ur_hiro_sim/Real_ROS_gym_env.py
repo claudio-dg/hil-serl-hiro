@@ -3,7 +3,7 @@ from typing import Any, Literal, Tuple, Dict
 import gym
 import numpy as np
 import rclpy
-from my_cpp_py_pkg.msg import RealState  # Custom msg
+from hil_serl_hiro_utils.msg import RealState  # Custom msg
 import threading
 from std_srvs.srv import Trigger
 from std_msgs.msg import Float32MultiArray 
@@ -12,8 +12,8 @@ from wait_for_message import wait_for_message
 
 @dataclass(frozen=True)
 class GymRenderingSpec:
-    height: int = 128 # 240
-    width: int = 128 # 320
+    height: int = 512#128 # 240 ### modificare qua e in gym spec per resizzare risoluzione
+    width: int = 512#128 # 320
     camera_id: str | int = -1
     mode: Literal["rgb_array", "human"] = "rgb_array"
 
