@@ -3,7 +3,7 @@ from typing import Any, Literal, Tuple, Dict
 import gym
 import numpy as np
 import rclpy
-from my_cpp_py_pkg.msg import SimulationState  # Custom msg
+from hil_serl_hiro_utils.msg import SimulationState  # Custom msg
 import threading
 from rclpy.wait_for_message import wait_for_message
 from std_srvs.srv import Trigger
