@@ -111,6 +111,7 @@ The following table shows the key files of this repo:
 | Code Directory | Description |
 | --- | --- |
 | [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) | Scripts for policy training, demonstration data collection, reward classifier training |
+| [examples.README.md](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/examples/README.md) | Notes and useful tips about running rlpd training  |
 | [serl_launcher](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher) | Main code for HIL-SERL |
 | [serl_launcher.agents](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/agents) | Agent Policies (e.g. SAC, BC) |
 | [serl_launcher.wrappers](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/wrappers) | Gym env wrappers |
