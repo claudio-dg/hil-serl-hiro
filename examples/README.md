@@ -11,8 +11,8 @@
     
 •	For more complex tasks (e.g., screwdriver operation):
 
-o	First signs of learning typically emerge after **15k–20k learning steps.**
-o	A minimally acceptable level of learning usually requires **35k–40k learning steps**.
+* 	First signs of learning typically emerge after **15k–20k learning steps.**
+* 	A minimally acceptable level of learning usually requires **35k–40k learning steps**.
 
 PRACTICAL EXPERIENCES IN ROBOT TRAINING / DATA COLLECTION
 Importance of Fixed & Consistent Cameras
