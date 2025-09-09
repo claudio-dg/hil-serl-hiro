@@ -34,9 +34,10 @@ Risk of **overfitting to camera angles**: it is crucial to maintain _consistent 
 2) **```Reward System```**
 A **robust** yet **reproducible** reward mechanism is essential (e.g., classifier + measurable parameters such as force along Y-axis).
 Example: a screwdriver classifier perfectly detected correct insertions, but was unusable for training due to difficulties in reproducing such precise conditions with joystick lag, cameras, etc.
+
  •	To address this:
- -	Fine-tune the classifier after initial training attempts and/or while reviewing recorded demonstrations TO remove **false positives** misinterpreted by the network.
- -	Evaluate strengths and weaknesses of the classifier to improve robustness.
+   -	Fine-tune the classifier after initial training attempts and/or while reviewing recorded demonstrations TO remove **false positives** misinterpreted by the network.
+   -	Evaluate strengths and weaknesses of the classifier to improve robustness.
 
 3) **```Generalization in Training```** _(especially witnessed with pick_up_box task)_
 •	Randomized resets (e.g., object position) are valuable ok, but further generalization should be introduced gradually.
