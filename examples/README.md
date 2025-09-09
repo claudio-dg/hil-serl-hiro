@@ -1,6 +1,7 @@
 
 # Notes on Training Procedures
-###General Guidelines
+### General Guidelines:
+
 •	Initially, the robot must be **continuously guided to success** (since success is binary, “almost correct” attempts do not provide useful learning signals).
 •	Over time, interventions should be **gradually reduced**, allowing the robot to explore independently, with human interventions limited to:
     1.	Preventing the robot from diverging too far from the task.
