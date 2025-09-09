@@ -25,7 +25,7 @@ Common patterns of failure or misbehavior become recognizable, leading to:
 
 ## ```Practical Experiences in Robot Training / Data Collection```
 
-### 1. Importance of Fixed & Consistent Cameras
+### 1. 📷 Importance of Fixed & Consistent Cameras 📷
 - Risk of **overfitting to camera angles** → it is crucial to maintain _consistent camera positioning from data collection through training_.  
 - **Alternative**: fine-tuning with multiple camera angles to promote generalization, although this becomes **computationally demanding** due to the added variability.  
 
@@ -62,8 +62,8 @@ _(especially observed with the `pick_up_box` task)_
 ---
 
 ## ⚠️ Penalty Mechanism ⚠️
-- With **gripper tasks**, penalties yielded poor results.  
-- With **screwdriver force tasks**, experiments are still in progress.  
+- With **gripper tasks**, penalties yielded poor results. 🛑  
+- With **screwdriver force tasks**, experiments are still in progress. 🔄  
 
 **Current observations:**
 - Adding penalties clearly **extends learning time**.  
