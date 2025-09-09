@@ -1,6 +1,6 @@
 # Notes on RLPD Training Procedures
 
-## General Guidelines
+## ```General Guidelines```
 Initially, the robot must be **continuously guided to success** (since success is binary, “almost correct” attempts do not provide useful learning signals).
 
 Over time, interventions should be **gradually reduced**, allowing the robot to explore independently, with human interventions limited to:
@@ -13,7 +13,7 @@ For more complex tasks (e.g., screwdriver operation):
 - First signs of learning typically emerge after **15k–20k learning steps**.
 - A minimally acceptable level of learning usually requires **35k–40k learning steps**.
 
-## Personal Considerations
+## ```Personal Considerations```
 Initial training sessions are **rarely optimal**. Progressively, the user themselves learns how to better train the agent.  
 Common patterns of failure or misbehavior become recognizable, leading to:
 
@@ -23,7 +23,7 @@ Common patterns of failure or misbehavior become recognizable, leading to:
 
 ---
 
-## Practical Experiences in Robot Training / Data Collection
+## ```Practical Experiences in Robot Training / Data Collection```
 
 ### 1. Importance of Fixed & Consistent Cameras
 - Risk of **overfitting to camera angles** → it is crucial to maintain _consistent camera positioning from data collection through training_.  
