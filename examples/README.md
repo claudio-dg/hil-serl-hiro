@@ -55,7 +55,7 @@ _(especially observed with the `pick_up_box` task)_
 
 **Example (box task):**
 - Randomized position at each reset accelerates generalization.  
-- Keeping the box always oriented in the same direction** greatly speeds up **early learning.  
+- Keeping the box always oriented in the same direction **greatly speeds up** early learning.  
 - The agent later generalizes orientation changes autonomously.  
 - Introducing this variation during training further improves robustness.  
 
