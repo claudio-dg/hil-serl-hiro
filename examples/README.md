@@ -1,6 +1,6 @@
 
 # Notes on RLPD Training Procedures
-## ```General Guidelines :```
+## ```General Guidelines: ```
 
 Initially, the robot must be **continuously guided to success** (since success is binary, “almost correct” attempts do not provide useful learning signals).
 
@@ -13,7 +13,15 @@ For more complex tasks (e.g., screwdriver operation):
 
 * 	First signs of learning typically emerge after **15k–20k learning steps.**
 * 	A minimally acceptable level of learning usually requires **35k–40k learning steps**.
-* 	
+
+## ```Personal Considerations: ```
+•	Initial training sessions are **rarely optima**l. Progressively, the user themselves learns how to better train the agent.
+
+•	Common patterns of failure or misbehavior become recognizable, leading to:
+
+-	Identification of misinterpretations causing incorrect learning.
+-	Detection of bugs or inefficiencies in the classifier.
+-	Refinement of parameters such as action ranges, step rate, episode time limits, or additional classifier parameters.
 ________________________________________
 ## ```Practical experiences in robot training / data collection```
 1) **```Importance of Fixed & Consistent Cameras```**:  
@@ -24,12 +32,7 @@ Risk of **overfitting to camera angles**: it is crucial to maintain _consistent 
 
 ________________________________________
 
-Personal Considerations
-•	Initial training sessions are rarely optimal. Progressively, the user themselves learns how to better train the agent.
-•	Common patterns of failure or misbehavior become recognizable, leading to:
-o	Identification of misinterpretations causing incorrect learning.
-o	Detection of bugs or inefficiencies in the classifier.
-o	Refinement of parameters such as action ranges, step rate, episode time limits, or additional classifier parameters.
+
 ________________________________________
 Reward System
 •	A robust yet reproducible reward mechanism is essential (e.g., classifier + measurable parameters such as force Y).
