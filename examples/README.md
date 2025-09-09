@@ -2,16 +2,16 @@
 # Notes on Training Procedures
 ### General Guidelines:
 
-•	Initially, the robot must be **continuously guided to success** (since success is binary, “almost correct” attempts do not provide useful learning signals).
+Initially, the robot must be **continuously guided to success** (since success is binary, “almost correct” attempts do not provide useful learning signals).
 
-•	Over time, interventions should be **gradually reduced**, allowing the robot to explore independently, with human interventions limited to:
+Over time, interventions should be **gradually reduced**, allowing the robot to explore independently, with human interventions limited to:
 
  1.	_Preventing the robot from diverging too far from the task._
  2.	_Correcting trajectories to ultimately achieve success._
     
-•	For more complex tasks (e.g., screwdriver operation):
+For more complex tasks (e.g., screwdriver operation):
 
-** 	First signs of learning typically emerge after **15k–20k learning steps.**
+* 	First signs of learning typically emerge after **15k–20k learning steps.**
 * 	A minimally acceptable level of learning usually requires **35k–40k learning steps**.
 
 PRACTICAL EXPERIENCES IN ROBOT TRAINING / DATA COLLECTION
