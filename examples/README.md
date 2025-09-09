@@ -26,7 +26,7 @@ ________________________________________
 ## ```Practical experiences in robot training / data collection```
 1) **```Importance of Fixed & Consistent Cameras```**:  
 
-Risk of **overfitting to camera angles**: it is crucial to maintain _consistent camera positioning from data collection through training_.
+        Risk of **overfitting to camera angles**: it is crucial to maintain _consistent camera positioning from data collection through training_.
 
 **Alternative**: fine-tuning with multiple camera angles to promote generalization, although this becomes **computationally demanding** given the additional variability to be managed.
 
