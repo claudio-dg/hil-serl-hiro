@@ -1,6 +1,6 @@
 
 # Notes on RLPD Training Procedures
-## '''General Guidelines''':
+## ```General Guidelines```
 
 Initially, the robot must be **continuously guided to success** (since success is binary, “almost correct” attempts do not provide useful learning signals).
 
