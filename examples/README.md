@@ -61,7 +61,7 @@ _(especially observed with the `pick_up_box` task)_
 
 ---
 
-## ⚠️ Penalty Mechanism
+## ⚠️ Penalty Mechanism ⚠️
 - With **gripper tasks**, penalties yielded poor results.  
 - With **screwdriver force tasks**, experiments are still in progress.  
 
