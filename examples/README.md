@@ -13,6 +13,7 @@ For more complex tasks (e.g., screwdriver operation):
 
 * 	First signs of learning typically emerge after **15k–20k learning steps.**
 * 	A minimally acceptable level of learning usually requires **35k–40k learning steps**.
+---
 
 ## ```Personal Considerations: ```
 Initial training sessions are **rarely optima**l. Progressively, the user themselves learns how to better train the agent.
@@ -26,12 +27,13 @@ ________________________________________
 ## ```Practical experiences in robot training / data collection```
 1) **```Importance of Fixed & Consistent Cameras```**:  
 
-        Risk of **overfitting to camera angles**: it is crucial to maintain _consistent camera positioning from data collection through training_.
+Risk of **overfitting to camera angles**: it is crucial to maintain _consistent camera positioning from data collection through training_.
 
 **Alternative**: fine-tuning with multiple camera angles to promote generalization, although this becomes **computationally demanding** given the additional variability to be managed.
 
 
 2) **```Reward System```**
+   
 A **robust** yet **reproducible** reward mechanism is essential (e.g., classifier + measurable parameters such as force along Y-axis).
 Example: a screwdriver classifier perfectly detected correct insertions, but was unusable for training due to difficulties in reproducing such precise conditions with joystick lag, cameras, etc.
 
