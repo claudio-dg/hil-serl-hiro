@@ -94,7 +94,7 @@ Launch in a separate terminal the node to extract data from the XBOX Controller:
 
  ```bash
 $ export PYTHONPATH=$PYTHONPATH:/home/claudiodelgaizo/ros/deps/opt/ros/jazzy/lib/python3.12/site-packages
-$ ros2 run my_cpp_py_pkg UR_joystick_move.py
+$ ros2 run hil_serl_hiro_utils UR_joystick_move.py
 ```
 Please, refer to the README at this [link](https://github.com/claudio-dg/my_cpp_py_pkg/blob/master/README.md) to learn more about how to use the XBOX Controller for this project.
 
