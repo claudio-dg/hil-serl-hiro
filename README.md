@@ -52,11 +52,17 @@ Table of Contents
     pip install -r requirements.txt
     ```
 
-4. **Install for ```serl_robot_infra```** Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions.
+4. **Install for ```serl_robot_infra```**
 
-5. **Install [hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)**:  this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment.
+ Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions.
 
-6. **Install [robot_controllers](https://github.com/hirorobotics/robot_controllers/tree/feat/implement-admittance-controller)**: this package contains the UR Admittance Controller required by the RL algorithm.
+5. **Install [hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)**: 
+
+ this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment.
+
+6. **Install [robot_controllers](https://github.com/hirorobotics/robot_controllers/tree/feat/implement-admittance-controller)**: 
+
+this package contains the UR Admittance Controller required by the RL algorithm.
   
 ## How to run the code
 In order to Run the scripts about HIRO HIL-SERL implementation, make sure to type the following commands on the Vecow PC that already contains all the requirements.
