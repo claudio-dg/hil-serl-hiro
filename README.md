@@ -106,7 +106,7 @@ For instance, in order to evaluate the performances of the last pre-trained RL a
 $ python3 real_UR_train_rlpd.py --actor --eval-checkpoint-step:=65000
 ```
 
-Please note that within the ```examples``` folder you'll find a brief [README.md](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/examples/README.md). There you can read additional and more specific guidelines about how to run the project, along with personal **tips** related to practical experiences. These may help you to understand better for instance how to intervene during the policy's training, or what aspects may affect more the "learning" and should require particular attention.
+Please note that within the ```examples``` folder you'll find a brief [README.md](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/examples/README.md). There, you can read additional and more specific guidelines about how to run the project, along with personal **tips** related to practical experiences. These may help you to understand better for instance how to intervene during the policy's training, or what aspects may affect more the "learning" and should require particular attention.
 
 ## Overview and Code Structure
 HIL-SERL provides a set of common libraries for users to train RL policies for robotic manipulation tasks. The main structure of running the RL experiments involves having an actor node and a learner node, both of which interact with the robot gym environment. Both nodes run asynchronously, with data being sent from the actor to the learner node via the network using [agentlace](https://github.com/youliangtan/agentlace). The learner will periodically synchronize the policy with the actor. This design provides flexibility for parallel training and inference.
