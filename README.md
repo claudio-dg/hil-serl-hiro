@@ -16,10 +16,42 @@ Table of Contents
 ---------------------------
 
 - [HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning](#serl-a-software-suite-for-sample-efficient-robotic-reinforcement-learning)
+  - [Overview and Code Structure](#overview-and-code-structure) 
   - [Installation](#installation)
   - [How to run the code](#how-to-run-the-code)
-  - [Overview and Code Structure](#overview-and-code-structure) 
   - [Citation](#citation)
+
+## Overview and Code Structure
+HIL-SERL provides a set of common libraries for users to train RL policies for robotic manipulation tasks. The main structure of running the RL experiments involves having an actor node and a learner node, both of which interact with the robot gym environment. Both nodes run asynchronously, with data being sent from the actor to the learner node via the network using [agentlace](https://github.com/youliangtan/agentlace). The learner will periodically synchronize the policy with the actor. This design provides flexibility for parallel training and inference.
+
+**Overall Architecture**
+
+The overall HIRO-HIL-SERL robot code is structured as follows:
+
+![](./docs/images/grafico%20HIRO%20HIL%20SERL.png)
+
+The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a **fully ROS-based architecture**. There is a gym env for the robot which communicates both to the _Mujoco simulation_ and the _real robot_ in the exact same way, that is by using ROS interfaces. This simplifies a lot the work when passing from testing in simulation to testing with a real robot, as it simply means bypassing the ```Mujoco ROS Simulation``` block. Eventually, the **Admittance Controller** used for this project, allows a proper control of the robot granting a good trade-off between the motion-accuracy the and exploration-safety.
+<!-- <p align="center">
+  <img src="./docs/images/software_design.png" width="80%"/>
+</p> -->
+
+**Table for repository structure**
+
+The following table shows the key files of this repo:
+
+| Code Directory | Description |
+| --- | --- |
+| [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) | Scripts for policy training, demonstration data collection, reward classifier training |
+| [examples.README.md](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/examples/README.md) | Notes and useful tips about running rlpd training  |
+| [serl_launcher](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher) | Main code for HIL-SERL |
+| [serl_launcher.agents](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/agents) | Agent Policies (e.g. SAC, BC) |
+| [serl_launcher.wrappers](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/wrappers) | Gym env wrappers |
+| [serl_launcher.data](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/data) | Replay buffer and data store |
+| [serl_launcher.vision](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/vision) | Vision related models and utils |
+| [serl_robot_infra](./serl_robot_infra/) | Robot infra for running with real robots |
+| [serl_robot_infra.franka_env](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_robot_infra/franka_env) (**TODO** camb nome) | Utils and wrappers for UR robot env |
+| [ur_hiro_sim](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/ur_hiro_sim/ur_hiro_sim) | **Base Generic** ROS Gym environments for [Mujoco](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/ur_hiro_sim/ur_hiro_sim/ROS_mujoco_gym_env.py) and [Real Robot](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/ur_hiro_sim/ur_hiro_sim/Real_ROS_gym_env.py) |
+| [ur_hiro_sim.envs](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/ur_hiro_sim/ur_hiro_sim/envs) | **Task specific** ROS Gym environments |
 
 ## Installation
 1. **Setup Conda Environment:**
@@ -108,37 +140,7 @@ $ python3 real_UR_train_rlpd.py --actor --eval-checkpoint-step:=65000
 
 Please note that within the ```examples``` folder you'll find a brief [README.md](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/examples/README.md). There, you can read additional and more specific guidelines about how to run the project, along with personal **tips** related to practical experiences. These may help you to understand better for instance how to intervene during the policy's training, or what aspects may affect more the "learning" and should require particular attention.
 
-## Overview and Code Structure
-HIL-SERL provides a set of common libraries for users to train RL policies for robotic manipulation tasks. The main structure of running the RL experiments involves having an actor node and a learner node, both of which interact with the robot gym environment. Both nodes run asynchronously, with data being sent from the actor to the learner node via the network using [agentlace](https://github.com/youliangtan/agentlace). The learner will periodically synchronize the policy with the actor. This design provides flexibility for parallel training and inference.
 
-**Overall Architecture**
-
-The overall HIRO-HIL-SERL robot code is structured as follows:
-
-![](./docs/images/grafico%20HIRO%20HIL%20SERL.png)
-
-The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a **fully ROS-based architecture**. There is a gym env for the robot which communicates both to the _Mujoco simulation_ and the _real robot_ in the exact same way, that is by using ROS interfaces. This simplifies a lot the work when passing from testing in simulation to testing with a real robot, as it simply means bypassing the ```Mujoco ROS Simulation``` block. Eventually, the **Admittance Controller** used for this project, allows a proper control of the robot granting a good trade-off between the motion-accuracy the and exploration-safety.
-<!-- <p align="center">
-  <img src="./docs/images/software_design.png" width="80%"/>
-</p> -->
-
-**Table for repository structure**
-
-The following table shows the key files of this repo:
-
-| Code Directory | Description |
-| --- | --- |
-| [examples](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/examples) | Scripts for policy training, demonstration data collection, reward classifier training |
-| [examples.README.md](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/examples/README.md) | Notes and useful tips about running rlpd training  |
-| [serl_launcher](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher) | Main code for HIL-SERL |
-| [serl_launcher.agents](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/agents) | Agent Policies (e.g. SAC, BC) |
-| [serl_launcher.wrappers](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/wrappers) | Gym env wrappers |
-| [serl_launcher.data](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/data) | Replay buffer and data store |
-| [serl_launcher.vision](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_launcher/serl_launcher/vision) | Vision related models and utils |
-| [serl_robot_infra](./serl_robot_infra/) | Robot infra for running with real robots |
-| [serl_robot_infra.franka_env](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/serl_robot_infra/franka_env) (**TODO** camb nome) | Utils and wrappers for UR robot env |
-| [ur_hiro_sim](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/ur_hiro_sim/ur_hiro_sim) | **Base Generic** ROS Gym environments for [Mujoco](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/ur_hiro_sim/ur_hiro_sim/ROS_mujoco_gym_env.py) and [Real Robot](https://github.com/claudio-dg/hil-serl-hiro/blob/hiro_simulation/ur_hiro_sim/ur_hiro_sim/Real_ROS_gym_env.py) |
-| [ur_hiro_sim.envs](https://github.com/claudio-dg/hil-serl-hiro/tree/hiro_simulation/ur_hiro_sim/ur_hiro_sim/envs) | **Task specific** ROS Gym environments |
 
 ## Citation
 
