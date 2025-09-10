@@ -42,6 +42,7 @@ A screwdriver classifier perfectly detected correct insertions, but was unusable
 - Remove **false positives** misinterpreted by the network.  
 - Evaluate strengths and weaknesses of the classifier to improve robustness.  
 
+#### Sparse Reward Vs Dense Reward
 ---
 
 ### 3. Generalization in Training
