@@ -54,7 +54,7 @@ Table of Contents
 
 4. **Install for serl_robot_infra** Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions.
 
-5. **Install my_cpp_py_pkg**: (TODO cambiare nome) this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [my_cpp_py_pkg](https://github.com/claudio-dg/my_cpp_py_pkg/tree/master)
+5. **Install hil_serl_hiro_utils**:  this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)
   
 ## How to run the code
 In order to Run the scripts about HIRO HIL-SERL implementation, make sure to type the following commands on the Vecow PC that already contains all the requirements.
