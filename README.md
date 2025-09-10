@@ -56,7 +56,7 @@ Table of Contents
 
 5. **Install ```hil_serl_hiro_utils```**:  this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)
 
-6. **Install ```robot_controllers```**: this package contains the UR Admittance Controller required by the RL algorithm. Find the repository at this link: [robot_controllers](https://github.com/hirorobotics/robot_controllers/tree/feat/implement-admittance-controller)
+6. **Install [robot_controllers](https://github.com/hirorobotics/robot_controllers/tree/feat/implement-admittance-controller)**: this package contains the UR Admittance Controller required by the RL algorithm. Find the repository at this link: [robot_controllers](https://github.com/hirorobotics/robot_controllers/tree/feat/implement-admittance-controller)
   
 ## How to run the code
 In order to Run the scripts about HIRO HIL-SERL implementation, make sure to type the following commands on the Vecow PC that already contains all the requirements.
