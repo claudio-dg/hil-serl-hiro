@@ -115,7 +115,7 @@ The overall HIRO-HIL-SERL robot code is structured as follows:
 
 ![](./docs/images/grafico%20HIRO%20HIL%20SERL.png)
 
-The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a fully ROS-based architecture. There is a gym env for the robot which communicates both to the Mujoco simulation and the real robot in the exact same way, that is by using ROS interfaces. This simplifies a lot the work when passing from testing in simulation to testing with a real robot.
+The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a **fully ROS-based architecture**. There is a gym env for the robot which communicates both to the _Mujoco simulation_ and the _real robot_ in the exact same way, that is by using ROS interfaces. This simplifies a lot the work when passing from testing in simulation to testing with a real robot, as it simply means bypassing the ```Mujoco ROS Simulation``` block. Eventually, the **Admittance Controller** used for this project, allows a proper control of the robot granting a good trade-off between the motion-accuracy the and exploration-safety.
 <!-- <p align="center">
   <img src="./docs/images/software_design.png" width="80%"/>
 </p> -->
