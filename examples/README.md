@@ -32,7 +32,7 @@ Common patterns of failure or misbehavior become recognizable, leading to:
 ---
 
 ### 2. Reward System
-A **robust yet reproducible** reward mechanism is essential (e.g., classifier + measurable parameters such as force along Y-axis).
+A **robust yet reproducible** reward mechanism is essential (e.g., image classifier + measurable parameters such as force along Y-axis).
 
 **Example**:  
 A screwdriver classifier perfectly detected correct insertions, but was unusable for training due to difficulties in reproducing such precise conditions with joystick lag, cameras, etc.
@@ -42,8 +42,14 @@ A screwdriver classifier perfectly detected correct insertions, but was unusable
 - Remove **false positives** misinterpreted by the network.  
 - Evaluate strengths and weaknesses of the classifier to improve robustness.  
 
-#### `Sparse Reward Vs Dense Reward`
-In this project you
+#### `Dense Reward Vs Sparse Reward`
+
+In this project, two different reward strategies are explored:
+The first one is the **Dense Reward** approach, where the policy receives a continuous feedback signal (from 0 to 1). This value may increase proportionally to the robot’s distance from its goal. Such a method is used in the pick_cube **simulation** tasks, where the robot does not rely on the image classifier, but instead obtains a reward at each simulation step based on its distance from the box to be picked up.
+This setup, however, cannot be replicated on the **real robot**. In this case, a **Sparse Reward** strategy is employed: the robot only receives discrete feedback (0 or 1) for each episode, determined by the output of the image classifier (and other measurable parameters, as mentioned earlier). This means that the robot can obtain at most a single reward, at the end of a successful episode.
+
+As one can imagine, _these two reward structures lead to significantly different training dynamics_. **Continuous** rewards enable a form of intermediate learning, where even **partial progress** (e.g., getting closer to success) provides useful feedback to the policy. With **binary** rewards, on the other hand, it is critical that the robot completes the entire task successfully multiple times in order to learn the policy. Consequently, human intervention becomes particularly important during training with sparse rewards, to guide the robot toward success.
+
 ---
 
 ### 3. Generalization in Training
