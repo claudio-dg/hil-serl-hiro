@@ -101,11 +101,18 @@ $ python3 real_UR_train_rlpd.py --actor --eval-checkpoint-step:=65000
 ## Overview and Code Structure
 HIL-SERL provides a set of common libraries for users to train RL policies for robotic manipulation tasks. The main structure of running the RL experiments involves having an actor node and a learner node, both of which interact with the robot gym environment. Both nodes run asynchronously, with data being sent from the actor to the learner node via the network using [agentlace](https://github.com/youliangtan/agentlace). The learner will periodically synchronize the policy with the actor. This design provides flexibility for parallel training and inference.
 
+**Overall Architecture**
+
+The overall HIRO-HIL-SERL robot code is structured as follows:
+
+![](../docs/images/grafico%20HIRO%20HIL%20SERL.png)
+
+The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a fully ROS-based architecture. There is a gym env for the robot which communicates
 <!-- <p align="center">
   <img src="./docs/images/software_design.png" width="80%"/>
 </p> -->
 
-**Table for code structure**
+**Table for repository structure**
 
 The following table shows the key files of this repo:
 
