@@ -105,7 +105,7 @@ HIL-SERL provides a set of common libraries for users to train RL policies for r
 
 The overall HIRO-HIL-SERL robot code is structured as follows:
 
-![](../docs/images/grafico%20HIRO%20HIL%20SERL.png)
+![](./docs/images/grafico%20HIRO%20HIL%20SERL.png)
 
 The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a fully ROS-based architecture. There is a gym env for the robot which communicates
 <!-- <p align="center">
