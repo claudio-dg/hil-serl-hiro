@@ -92,5 +92,7 @@ _(especially observed with the `pick_up_box` task)_
 - High sensitivity to minor scene variations makes direct transfer unlikely to succeed.  
 - Even with near-perfect simulation fidelity (very difficult due to both camera setup and contact handling in MuJoCo), achieving robustness in the real world remains questionable.  
 
-**COMPLETARE AGGIUNGENFO QUESTA PARTE E MAGARI AGGIUNGENDO QUALCHE EMO DA QUALCHE PARTE**To this regard [Robotics and AI institute](https://rai-inst.com/resources/blog/designing-wheeled-robotic-systems/) mostrano esempio di come ciò sia effettivamente possibile (usando porobabilmente altri ambienti simulativi) ma complesso, in quanto hanno dovuto eseguire molti test per verificare come reagisse il loro robot a certi stimoli nel mondo reale, in modo da riprodurre esattamente nel dettaglio la stessa cosa in simulazione
-LINK AL LORO VIDEO: [link](https://www.youtube.com/watch?v=cjaZUFMZWOY) 
+To this regard, the [Robotics and AI Institute](https://rai-inst.com/resources/blog/designing-wheeled-robotic-systems/) provides an example showing that such transfer is indeed possible (likely using different simulation environments), though highly complex. In their case, extensive testing was required to observe how the robot reacted to specific stimuli in the real world, in order to reproduce the same conditions in simulation with a high level of detail. Here the link to their [video](https://www.youtube.com/watch?v=cjaZUFMZWOY).
+
+
+
