@@ -45,17 +45,19 @@ Table of Contents
         ```
     - See the [Jax Github page](https://github.com/google/jax) for more details on installing Jax.
 
-3. **Install the serl_launcher**
+3. **Install the ```serl_launcher```**
     ```bash
     cd serl_launcher
     pip install -e .
     pip install -r requirements.txt
     ```
 
-4. **Install for serl_robot_infra** Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions.
+4. **Install for ```serl_robot_infra```** Follow the [README](./serl_robot_infra/README.md) in `serl_robot_infra` for installation and basic robot operation instructions.
 
-5. **Install hil_serl_hiro_utils**:  this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)
-  
+5. **Install ```[hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)```**:  this package contains some important scripts to use the Xbox Controller and to "Bridge" info from/to the robot to/from Gym enivornment. Find the repository at this link: [hil_serl_hiro_utils](https://github.com/claudio-dg/hil_serl_hiro_utils/tree/master)
+
+6. **Install ```robot_controllers```**:
+  https://github.com/hirorobotics/robot_controllers/tree/feat/implement-admittance-controller
 ## How to run the code
 In order to Run the scripts about HIRO HIL-SERL implementation, make sure to type the following commands on the Vecow PC that already contains all the requirements.
 
@@ -107,7 +109,7 @@ The overall HIRO-HIL-SERL robot code is structured as follows:
 
 ![](./docs/images/grafico%20HIRO%20HIL%20SERL.png)
 
-The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a fully ROS-based architecture. There is a gym env for the robot which communicates
+The Flask server which sent commands to the robot via ROS in the original HIL-SERL repository, has been substituted with a fully ROS-based architecture. There is a gym env for the robot which communicates both to the Mujoco simulation and the real robot in the exact same way, that is by using ROS interfaces. This simplifies a lot the work when passing from testing in simulation to testing with a real robot.
 <!-- <p align="center">
   <img src="./docs/images/software_design.png" width="80%"/>
 </p> -->
