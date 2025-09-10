@@ -88,7 +88,7 @@ $ ros2 launch ur_hiro_bringup ur_real_bringup.launch.py robot_ip:=192.168.3.102
 Launch the script to allow the communication between gym, the robot and external controllers (such as the XBOX Controller)
 
  ```bash
-$ ros2 run my_cpp_py_pkg RealStateBridgeNode.py
+$ ros2 run hil_serl_hiro_utils RealStateBridgeNode.py
 ```
 Launch in a separate terminal the node to extract data from the XBOX Controller:
 
