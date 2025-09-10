@@ -1,6 +1,5 @@
 # SERL Robot Infra
-![](../docs/images/robot_infra_interfaces.png)
-
+![](../docs/images/grafico%20HIRO%20HIL%20SERL.png)
 All robot code is structured as follows:
 There is a Flask server which sends commands to the robot via ROS. There is a gym env for the robot which communicates with the Flask server via post requests.
 
