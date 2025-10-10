@@ -379,7 +379,7 @@ class Real_UR_Unscrewing_RosEnv(RealGymEnv):
 
         obs["state"]["tcp_ft"] = tcp_force_torque
 
-        print_green(f" *** FORCE TORQUE: {tcp_force_torque}")
+        # print_green(f" *** FORCE TORQUE: {tcp_force_torque}")
         #### quando in vite, il secondo valore (direi forza-Y) passa da valore positivo a circa -8
 
         # ------ gripper pose ------

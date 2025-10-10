@@ -66,6 +66,7 @@ from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
     MultiCameraBinaryRewardClassifierWrapper,
     UR_GripperPenaltyWrapper,
+    UR_ScrewdriverTouchPenaltyWrapper,
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
@@ -73,9 +74,13 @@ from franka_env.envs.UR_JoystickAction import JoystickInterventionWrapper
 from serl_launcher.networks.reward_classifier import load_classifier_func
 
 
-recorded_demos_path = "demo_data/avvitatore_20_demos_2025-09-01_11-44-26.pkl" # REAL ROBOT WITH GRIPPER!
+# recorded_demos_path = "demo_data/avvitatore_20_demos_2025-09-01_11-44-26.pkl" # REAL ROBOT WITH GRIPPER!
+recorded_demos_path = "demo_data/avvitatore_20_demos_POSTCatastrofe_2025-09-08_15-51-31.pkl" # nuovo post catastrofe per capire perchè non traina più un belino (è questo o centra il penalty?)
+
+
 # trained_Ckpt_path =  "Avvitatore_rlpd_training_1st_Test"# primo test funzionante (ma con rew troppo lasco e baco occlusione al 99% acc)
-trained_Ckpt_path =  "Avvitatore_rlpd_training_2nd_Test_meno_Lasco"#
+# trained_Ckpt_path =  "Avvitatore_rlpd_training_2nd_Test_meno_Lasco"# OTTIMO!!!! pochi bachi, BEST TRAINING ! (perso con spostamento camere.. provavre a recuperare con sorta do fine tunne.. ossia portandolo avanti per 10k step)
+trained_Ckpt_path =  "Avvitatore_rlpd_training_3rd_Test_ForcePenalty"# da fare nuovo x testare penalty toccamento avvitatore
 
 FLAGS = flags.FLAGS
 
@@ -85,10 +90,8 @@ flags.DEFINE_boolean("learner", False, "Whether this is a learner.")
 flags.DEFINE_boolean("actor", False, "Whether this is an actor.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
 flags.DEFINE_multi_string("demo_path", recorded_demos_path, "Path to the demo data.")
-flags.DEFINE_string("checkpoint_path", trained_Ckpt_path, "Path to save checkpoints.") # NUOVO TRAINING "per ripartire da prec NO_PROTECTION_Trainersave_ckpt_Buffer"
-# flags.DEFINE_string("checkpoint_path", partial_training_path, "Path to resume & save checkpoints.") # RIPRENDERE VECCHIO TRAINING
+flags.DEFINE_string("checkpoint_path", trained_Ckpt_path, "Path to save checkpoints.") # NUOVO TRAINING
 flags.DEFINE_string("eval_checkpoint_path", trained_Ckpt_path, "my Path to the trained checkpoints.")
-# flags.DEFINE_string("eval_checkpoint_path", partial_training_path, "my Path to the trained checkpoints.") # per testare ckpt trainato
 flags.DEFINE_integer("eval_checkpoint_step", 0, "Step to evaluate the checkpoint.")
 flags.DEFINE_integer("eval_n_trajs", 20, "Number of trajectories to evaluate.")
 flags.DEFINE_boolean("save_video", False, "Save video.")
@@ -104,9 +107,8 @@ sharding = jax.sharding.PositionalSharding(devices)
 
 
 batch_size = 32 #32 #64 original --> provo diminuire a 32 per avvitatore
-# proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 proprio_keys = ["tcp_pose","tcp_ft", "gripper_pose"] 
-image_keys = ["my_realsense","my_basler"] ################# DA QUA
+image_keys = ["my_realsense","my_basler"] 
 
 # setup_mode = "single-arm-learned-gripper"
 setup_mode = "single-arm-fixed-gripper" # provo fixed per avvitatore che non usa griprre
@@ -200,8 +202,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                     real_succ_rate = (my_success_counter/(episode +1) )*100
                     print_green(f"Actual successe rate = {real_succ_rate}%")
 
-                # time.sleep(0.05) #########################provo A RALLENTARE FREQUENZA STEP
-                # time.sleep(0.2) #########################provo A RALLENTARE FREQUENZA STEP
                 time.sleep(0.25) #########################provo A RALLENTARE FREQUENZA STEP
                 ############# NOTA: Mi sembra che ci siano risultati migliori 
                 # mettendo stesso rate dell'actor usato per il training ANCHE nella evaluation!!!!!!!!!!
@@ -259,13 +259,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
 
     for step in pbar:
         timer.tick("total")
-         # Stampa il numero di step corrente e il tempo trascorso
-        # if step % 10 == 0:  # Stampa ogni 10 step
-        #     elapsed_time = time.time() - start_time
-        # print(f"Step: {step}, Tempo trascorso: {elapsed_time:.2f} secondi")
-
         with timer.context("sample_actions"):
-            # if step < config.random_steps:
             if step < random_steps:
                 actions = env.action_space.sample()
                 # print_green(f"(ACTOR) AZIONE .sampled  = {actions}%") # random = 0 ergo non lo fa mai...
@@ -341,7 +335,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
         # time.sleep(0.35) #########################provo A RALLENTARE FREQUENZA STEP
 
 
-        # if step > 0 and config.buffer_period > 0 and step % config.buffer_period == 0:
         if step > 0 and buffer_period > 0 and step % buffer_period == 0:
             # dump to pickle file
             print_green(f"\n ############# ACTOR step {step}")
@@ -362,7 +355,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
 
         timer.tock("total")
 
-        # if step % config.log_period == 0:
         if step % log_period == 0:
             stats = {"timer": timer.get_average_times()}
             client.request("send-stats", stats)
@@ -399,14 +391,12 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
 
     # Loop to wait until replay_buffer is filled
     pbar = tqdm.tqdm(
-        # total=config.training_starts,
         total=training_starts,
         initial=len(replay_buffer),
         desc="Filling up replay buffer",
         position=0,
         leave=True,
     )
-    # while len(replay_buffer) < config.training_starts:
     while len(replay_buffer) < training_starts:
         pbar.update(len(replay_buffer) - pbar.n)  # Update progress bar
         time.sleep(1)
@@ -423,7 +413,6 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
     # 50/50 sampling from RLPD, half from demo and half from online experience
     replay_iterator = replay_buffer.get_iterator(
         sample_args={
-            # "batch_size": config.batch_size // 2,
             "batch_size": batch_size // 2,
             "pack_obs_and_next_obs": True,
         },
@@ -431,7 +420,6 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
     )
     demo_iterator = demo_buffer.get_iterator(
         sample_args={
-            # "batch_size": config.batch_size // 2,
             "batch_size": batch_size // 2,
             "pack_obs_and_next_obs": True,
         },
@@ -449,14 +437,12 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
         train_networks_to_update = frozenset({"critic", "grasp_critic", "actor", "temperature"})
 
     for step in tqdm.tqdm(
-        # range(start_step, config.max_steps), dynamic_ncols=True, desc="learner"
         range(start_step, max_steps), dynamic_ncols=True, desc="learner"
     ):
         # print_green("\n  bbbbbbbbbbbbbbbbbbbbbbbbbbbb")
         
         # run n-1 critic updates and 1 critic + actor update.
         # This makes training on GPU faster by reducing the large batch transfer time from CPU to GPU
-        # for critic_step in range(config.cta_ratio - 1):
         for critic_step in range(cta_ratio - 1):
             with timer.context("sample_replay_buffer"):
                 batch = next(replay_iterator)
@@ -478,14 +464,12 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
                 networks_to_update=train_networks_to_update,
             )
         # publish the updated network
-        # if step > 0 and step % (config.steps_per_update) == 0:
         if step > 0 and step % (steps_per_update) == 0:
             print_orange(f"LEARNER STEP: {step}")
 
             agent = jax.block_until_ready(agent)
             server.publish_network(agent.state.params)
 
-        # if step % config.log_period == 0 and wandb_logger:
         if step % log_period == 0 and wandb_logger:
             wandb_logger.log(update_info, step=step)
             wandb_logger.log({"timer": timer.get_average_times()}, step=step)
@@ -494,9 +478,7 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
         # print_green(f"\n CCCCCCCCCCCCCCCCCCC ############# step {step}")
         if (
             step > 0
-            # and config.checkpoint_period
             and checkpoint_period
-            # and step % config.checkpoint_period == 0
             and step % checkpoint_period == 0
         ):
             # print_green(f"\n DDDDDDDDDDDDDDDDDDDdd ############# step {step}")
@@ -533,7 +515,8 @@ def main(_):
                 sample=env.observation_space.sample(),
                 image_keys=image_keys,
                 # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore_Sec_FineTuned_2Settembre_/"), # con questo FATTO --> Avvitatore_rlpd_training_1st_Test
-                checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"), # con questo FATTO -->
+                # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"), # con questo FATTO --> second (perfetto)
+                checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_AfterCATASTROFE_5Settembre_/"), # con questo FATTO --> second (perfetto)
                 
             )
             def reward_func(obs, info):
@@ -550,13 +533,13 @@ def main(_):
                 else:
                     print_blue(f"Y FORCE < -1.0  = {info["is_inserted_enough"]}")
 
-                # return int(pred[0] > 0.95) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
-                return int(pred[0] > 0.81 and info["is_inserted_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+                return int(pred[0] > 0.81 and info["is_inserted_enough"]) 
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
     ################################################################################################################################ 
     
-    # env = UR_GripperPenaltyWrapper(env, penalty= 0.1)
+    # env = UR_GripperPenaltyWrapper(env, penalty= 0.1) # aggiunge penalty per il gripper
+    env = UR_ScrewdriverTouchPenaltyWrapper(env, penalty= 0.02) # aggiunge penalty per avvitatore TEST
     # env = UR_GripperPenaltyWrapper(env, penalty= 0.75) # aggiunge penalty per il gripper (provo altissimo = 0,055) --- ALTISSIMISSSSSIMO 0,255
     # wrapper del trainer
     env = RecordEpisodeStatistics(env)

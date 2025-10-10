@@ -48,15 +48,15 @@ class MultiCameraBinaryRewardClassifierWrapper(gym.Wrapper):
         self.reward_classifier_func = reward_classifier_func
         self.target_hz = target_hz
 
-    def compute_reward(self, obs):
+    def compute_reward(self, obs, info): ### aggiungo io passaggio di campo info
         if self.reward_classifier_func is not None:
-            return self.reward_classifier_func(obs)
+            return self.reward_classifier_func(obs, info)
         return 0
 
     def step(self, action):
         start_time = time.time()
         obs, rew, done, truncated, info = self.env.step(action)
-        rew = self.compute_reward(obs)
+        rew = self.compute_reward(obs, info)
         done = done or rew
         info['succeed'] = bool(rew)
         if self.target_hz is not None:
@@ -236,6 +236,37 @@ class GripperPenaltyWrapper(gym.RewardWrapper):
         reward, penalty = self.reward(reward, action)
         info["grasp_penalty"] = penalty
         self.last_gripper_pos = observation["state"][0, 0]
+        return observation, reward, terminated, truncated, info
+    
+class UR_ScrewdriverTouchPenaltyWrapper(gym.RewardWrapper):
+    def __init__(self, env, penalty=0.1):
+        super().__init__(env)
+        assert env.action_space.shape == (4,)
+        self.penalty = penalty
+        self.force_y = None
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        self.force_y = obs["state"][0, 2] ### qui trovare quello aggiusto per accedere a Forza asse Y
+        # print("\n\n\n  FORZA Y = ", self.force_y)
+        return obs, info
+
+    def reward(self, reward: float, action) -> float:
+        if self.force_y < -1.75:  # if force on Y axis is less than -1.0N (i.e., touching the surface)
+            return reward - self.penalty, self.penalty
+        else:
+            return reward, 0.0
+
+    def step(self, action):
+        """Modifies the :attr:`env` :meth:`step` reward using :meth:`self.reward`."""
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        if "intervene_action" in info:
+            action = info["intervene_action"]
+        reward, penalty = self.reward(reward, action)
+        info["grasp_penalty"] = penalty
+        self.force_y = observation["state"][0, 2] ### qui trovare quello aggiusto per accedere a Forza asse Y
+        # print("\n\n\n  FORZA Y = ", self.force_y)
+
         return observation, reward, terminated, truncated, info
     
 class UR_GripperPenaltyWrapper(gym.RewardWrapper):

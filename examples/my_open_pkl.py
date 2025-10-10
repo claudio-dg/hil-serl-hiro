@@ -14,69 +14,30 @@ def print_yellow(x):
 ####################################################################################################
 ################################ demo data from UR_rec_demos_sim.py ################################
 
-# file_path = "demo_data/pick_cube_sim_30_demos_2025-03-18_15-46-36.pkl"  # 69 elementi --> ma non è realmente 30 demo mi sa
-# file_path = "demo_data/pick_cube_sim_30_demos_2025-03-26_15-01-00.pkl"  # 51 elementi
-# file_path = "demo_data/pick_cube_sim_30_demos_2024-12-10_16-39-49.pkl"  #  1782 elementi -Z questo è 30 DEMOS !
-
-# file_path = "demo_data/A_my_UR_TEST_2_demos_first_completed.pkl" # 31316 elementi (?????)
-
-
-
-# file_path = "demo_data/AAA_my_UR_TEST_20_demos_2025-05-13_14-57-38.pkl"  # 86 elementi ## ------------- ##
-# prima demo va da 0-13 
-# seconda demo va da 14 -23
-## nota --> in realtà son tipo 18 demo perchè bug per cui a volte quando termina episodio salva due volte di fila 
-#  RIFARE, PERCHÈ IN REALTÀ IL TEST CON 30 DEMOS HA CIRCA 1800 TRANS, QUINDI RIFARE AUMENTANDO FREWUNZA CAMPIONAMENTO PER AVERE CIRCA 2K
-
+# file_path = "demo_data/pick_cube_sim_30_demos_2024-12-10_16-39-49.pkl"  #  1782 elementi -> questo è 30 DEMOS original sim !
 # file_path = "demo_data/NO_PROTECTION_30_demos_2025-07-09_11-25-25.pkl"  # 1247 elementi ## ------------- ##
+# file_path = "demo_data/avvitatore_20_demos_2025-09-01_11-44-26.pkl"  
 
-#################################################################################################################
-################################ classifier data from UR_rec_success_fail_sim.py ################################
+
+#####################################################################################################
+################################ classifier data from UR_rec_success_fail_sim.py ####################
 
 # ****** successi ******
-# file_path = "classifier_data/pick_cube_sim_4_success_images_2024-12-11_09-35-44.pkl" 
-# file_path = "classifier_data/A_my_UR_1_success_images_2025-05-06_14-45-52.pkl"  
-# file_path = "classifier_data/A_my_UR_30_success_Con_IMMAGINI_2025-05-07_11-00-17.pkl"  
 
-# file_path = "classifier_data/succ/sec_testSet100_succ.pkl" # giusto 100 elementi
-# file_path = "classifier_data/succ/AAA_my_UR_200_success_images_2025-05-13_15-49-59.pkl" # giusto 200 elementi
 
-# 0-24 ok
-# 25-49 ok
+# file_path = "classifier_data/succ/Extra_TEST_SCREWDRIVER_IMG_3_success_images_2025-08-26_11-21-04.pkl"  
 
 # ****** failures ******
-# file_path = "classifier_data/A_my_UR_failure_images_2025-05-06_14-45-52.pkl" # 1678 elementi
-# file_path = "classifier_data/A_my_UR_failure_images_1ogni100failures.pkl" # 10 elementi
-# file_path = "classifier_data/A_my_UR_failure_Con_IMMAGINI_2025-05-07_11-00-17.pkl" # 28 elementi
-# file_path = "classifier_data/A_my_UR_failure_images_2025-05-08_17-05-05.pkl" # 10 elementi
 
-# file_path = "classifier_data/fails/AAA_my_UR_failure_images_2025-05-13_15-49-59.pkl" # 107 elementi, non abbastanza (suggeriscino 2x/3x rispetto ai succ)
-# PROVO A PRENDERE I FAILURES IN TEST SEPARATO.. forse ha anche senso csoì non ho  successi registrati come failures
+file_path = "classifier_data/Avvitatore_well_resized/fails/Wsized_150_TEST_SCREWDRIVER_IMG_failure_imgs_2025-09-03_11-04-05.pkl"  
 
-# file_path = "classifier_data/fails/AAA_my_UR_failure_images_2025-05-13_16-17-23.pkl" # 651 elementi,  test seprato da qui prendo solo failures ## ------------- ##
-# element_to_pick = 31300
 
-# file_path = "classifier_data/succ/testWITH_Imgs_real_UR_10_success_images_2025-07-25_14-14-55.pkl"  # 
-# file_path = "classifier_data/succ/testWITH_Imgs_real_UR_10_success_images_2025-07-25_16-17-39.pkl"  # 1247 elementi ## ------------- ##
-################################################# TRAINING buffer data #####################################################
+###################################### TRAINING buffer data ###########################################
 
-# file_path = "classifier_data/succ/REALrobot_Imgs_real_UR_10_success_images_2025-07-31_10-15-09.pkl"  # 1247 elementi ## ------------- ##
 # file_path = "NO_PROTECTION_Trainersave_ckpt_Buffer/demo_buffer/transitions_90000.pkl"  # 1247 elementi ## ------------- ##
 
+element_to_pick = 149
 
-# file_path = "classifier_data/succ/ROBOT_MOUNTED_2025-08-01_16-45-32.pkl"  # 
-# file_path = "classifier_data/fails/testNO_Imgs_real_UR_failure_images_2025-08-01_16-45-32.pkl"  #  7 elementi
-
-# file_path = "classifier_data/fails/testNO_Imgs_real_UR_failure_images_2025-07-25_16-17-39.pkl"  # 
-
-########################à REAL ROBOT ########################
-# file_path = "classifier_data/fails/REAL_Mounted_2025-08-01_17-27-10.pkl"  #  43 elementi a caso da riprendere
-# file_path = "classifier_data/Real_Robot/succ/REAL_Mounted_200_success_images_2025-08-01_17-27-10.pkl"  #  201
-# file_path = "classifier_data/Real_Robot/fails/REAL_Mounted_failure_2025-08-04_10-27-02.pkl"  #  1000
-
-file_path = "demo_data/REAL_ROBOT_30_demos_2025-08-05_15-24-59.pkl"  #  2761 elementi
-
-element_to_pick = 2740
 
 # Funzione per caricare il file .pkl
 def carica_pkl(file_path):
@@ -94,6 +55,7 @@ def show_pkl_content(file_path):
     if isinstance(data, list):
         print(f"Il file contiene una lista con {len(data)} elementi. \n")
         # Analizza il primo elemento
+# 
         print("Tipo del elemento:", type(data[element_to_pick]) , " \n")
         print("Contenuto dell' elemento N:", element_to_pick, " = ", "\n\n ", data[element_to_pick])
         if isinstance(data[element_to_pick], dict):
@@ -103,9 +65,23 @@ def show_pkl_content(file_path):
                 if isinstance(value, np.ndarray):
                     print(f"       Forma = {value.shape}")
                     print(f"       Valori iniziali: {value.flatten()[:5]}")  # Mostra i primi 5 valori
+#    
     # Mostra il valore del reward
-            if 'rewards' in data[element_to_pick]:
-                print(f"\n ## Valore del reward associato alla transizione: {data[element_to_pick]['rewards']}")
+        if 'rewards' in data[element_to_pick]:
+            print(f"\n ## Valore del reward associato alla transizione: {data[element_to_pick]['rewards']}")
+    
+      # --- NUOVA LOGICA: mostra tutti i valori di "action" ---
+        # print_green(f"\nValori del campo 'action' per tutti gli elementi:")
+        # for idx, elem in enumerate(data):
+        #         print_yellow(f"Elemento {idx}: action = {data[idx]['actions']}")
+
+        # --- NUOVA LOGICA: mostra tutti i valori di "grasp_penalty" ---
+        # print_yellow(f"\nValori del campo 'grasp_penalty' per tutti gli elementi:")
+        # for idx, elem in enumerate(data):
+                # print_yellow(f"Elemento {idx}: grasp_penalty = {data[idx]['grasp_penalty']}")
+
+
+                
     elif isinstance(data, dict):
         print("\n Chiavi del dizionario:", data.keys())
     else:

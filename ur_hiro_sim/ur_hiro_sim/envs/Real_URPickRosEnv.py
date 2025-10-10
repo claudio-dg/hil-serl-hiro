@@ -43,14 +43,18 @@ class ImageDisplayer(threading.Thread):
                 break
 
             frame = np.concatenate(
-                [cv2.resize(v, (128, 128)) for k, v in img_array.items() if "full" not in k], axis=1
+                # [cv2.resize(v, (128, 128)) for k, v in img_array.items() if "full" not in k], axis=1
+                [cv2.resize(v, (512, 512)) for k, v in img_array.items() if "full" not in k], axis=1
+                # [cv2.resize(v, (512, 301)) for k, v in img_array.items() if "full" not in k], axis=1
+                # [cv2.resize(v, (720, 720)) for k, v in img_array.items() if "full" not in k], axis=1
+                #  per risoluz immagini, OTLRE A QUA, va vambiato gym renderin spec in "Real_ROS_gym_env.py"
+
             )
 
             cv2.imshow(self.name, frame)
             cv2.waitKey(1)
 
 bridge = CvBridge()
-
 class Real_URPickRosEnv(RealGymEnv):
     """Environment specifico per il task di pick-and-place con il robot UR."""
 
@@ -60,7 +64,7 @@ class Real_URPickRosEnv(RealGymEnv):
         seed: int = 0,
         control_dt: float = 0.1,
         physics_dt: float = 0.002,
-        time_limit: float = 60.0, 
+        time_limit: float = 450.0, 
         render_spec: GymRenderingSpec = GymRenderingSpec(),
 
         image_obs: bool = True,
@@ -91,8 +95,24 @@ class Real_URPickRosEnv(RealGymEnv):
 
         # print_green(f" \n\n\n\n\n\n START CAMERA flag =  {start_camera} \n\n\n\n\n\n  ")
 
-        self.IMAGE_CROP: dict[str, callable] = {"my_realsense": lambda img: img[50:-200, 200:-200]}
-        self.save_video = True # False
+        # definisce un dizionario chiamato IMAGE_CROP che associa a "my_realsense" una funzione lambda 
+        # (cioè una funzione anonima) 
+        # che prende in input un’immagine img e restituisce una sotto-porzione (crop) di essa.
+        # self.IMAGE_CROP: dict[str, callable] = {"my_realsense": lambda img: img[50:-200, 200:-200]} 
+        #50:-200 sulle righe (asse Y):
+        # Prende le righe dalla 50-esima fino a 200 righe dalla fine.
+        # 200:-200 sulle colonne (asse X):
+        # Prende le colonne dalla 200-esima fino a 200 colonne dalla fine.
+
+
+        # self.IMAGE_CROP: dict[str, callable] = {"my_realsense": lambda img: img[50:-200, 200:-200]} # provo crop più dettagliato sul bit
+        # sembra ok, provare ahhiungere basler crop -->
+        self.IMAGE_CROP: dict[str, callable] = {
+        "my_realsense": lambda img: img[300:-300, 450:-350],
+        "my_basler": lambda img: img[50:-150, 100:-50],  # <-- sDA VALUTARE BENE QUA E TESTARE
+        }
+
+        self.save_video = False #True # False
         if self.save_video:
             print("Saving videos!")
             self.recording_frames = []
@@ -255,7 +275,8 @@ class Real_URPickRosEnv(RealGymEnv):
         obs = self.compute_observation()
         ###################### caso REC DEMO REALE ######################
         reward = self._compute_reward()
-        success, is_low_enough = self._is_success()
+        # success, is_low_enough = self._is_success()
+        success, is_high_enough = self._is_success()
 
         # Check timeout
         elapsed_time = time.time() - self._start_time
@@ -269,7 +290,7 @@ class Real_URPickRosEnv(RealGymEnv):
             "time_exceeded": time_exceeded,
             "elapsed_time": elapsed_time,
             #### add info to establish real case's success along with image classifier
-            "is_low_enough": is_low_enough,
+            "is_high_enough": is_high_enough,
         }
 
         return obs, reward, done, False, info
@@ -400,7 +421,8 @@ class Real_URPickRosEnv(RealGymEnv):
         # lift = object_position[2] - obj_Z_init
 
         # return "success" (T/F), "is_low_enough (T/F)"
-        return tcp_position[2]  < 0.2, tcp_position[2]  < 0.26
+        # return tcp_position[2]  < 0.2, tcp_position[2]  < 0.26 # LOW ENOUGH
+        return tcp_position[2]  < 0.2, tcp_position[2]  > 0.40 # HIGH ENOUGH (gripper case)
 
 def main():
     print("Avvio dell'environment Real_URPickRosEnv con ROS2...")

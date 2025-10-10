@@ -56,11 +56,8 @@ from serl_launcher.utils.launcher import (
 )
 from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 
-# from experiments.mappings import CONFIG_MAPPING
-# import mujoco.viewer
-
 ########### gym environment ###########
-from ur_hiro_sim.envs.TestCamera_Ros_UR_PickCube_gym_env import Real_URPickRosEnv
+from ur_hiro_sim.envs.Real_URPickRosEnv import Real_URPickRosEnv
 
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
 from franka_env.envs.relative_env import RelativeFrame
@@ -81,7 +78,10 @@ recorded_demos_path = "demo_data/REAL_Robot_W_GRIPPER__30_demos_2025-08-11_09-52
 
 # trained_Ckpt_path =  "1h30_training_checkpoints"# SIMULAZIONE
 # trained_Ckpt_path =  "Real_robot_Training"# REAL ROBOT
-trained_Ckpt_path =  "3_0_Real_robot_Training_With_Gripper"# REAL ROBOT WITH GRIPPER
+trained_Ckpt_path =  "3_0_Real_robot_Training_With_Gripper"# REAL ROBOT WITH GRIPPER (QUESTO ERA IL MIGLIORE CON VIDEO 13 AGOSTO, RIPROVATO IL 18 AGOSTO NON CAPISCO PERCHÈ IPMAZZISCA E FACCIA SCHIFO ORA...)
+# trained_Ckpt_path =  "4_0_0_provaPENALTyAlto_Real_robot_Training_With_Gripper"# REAL ROBOT WITH GRIPPER PENALTY TEST
+# trained_Ckpt_path =  "5_0_NewTrial_Real_robot_Training_With_Gripper"# riprovo nuovo Martedì 19 Agosto
+
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("exp_name", None, "Name of experiment corresponding to folder.")
@@ -126,9 +126,7 @@ training_starts: int = 100
 cta_ratio: int = 2
 steps_per_update = 50
 
-
-
-
+##############################################################################
 
 def print_green(x):
     return print("\033[92m {}\033[00m".format(x))
@@ -166,7 +164,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
         for episode in range(FLAGS.eval_n_trajs):
             obs, _ = env.reset() ##################### provo a vedere se non crasha
             time.sleep(0.2)
-            print("\n\n\n\n AAAAAAAAAAAAAAAAAAAAA \n\n\n")
             done = False
             start_time = time.time()
             while not done:
@@ -176,7 +173,6 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                     argmax=False,
                     seed=key
                 )
-              
 
                 actions = np.asarray(jax.device_get(actions))
 
@@ -207,7 +203,11 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                     print_green(f"Total successes = {my_success_counter}/{episode + 1}")
                     real_succ_rate = (my_success_counter/(episode +1) )*100
                     print_green(f"Actual successe rate = {real_succ_rate}%")
-                time.sleep(0.05) #########################provo A RALLENTARE FREQUENZA STEP
+
+                # time.sleep(0.05) #########################provo A RALLENTARE FREQUENZA STEP
+                time.sleep(0.15) #########################provo A RALLENTARE FREQUENZA STEP
+                ############# NOTA: Mi sembra che ci siano risultati migliori 
+                # mettendo stesso rate dell'actor usato per il training ANCHE nella evaluation!!!!!!!!!!
 
 
 
@@ -328,6 +328,7 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                 stats = {"environment": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
                 pbar.set_description(f"last return: {running_return}")
+                print_orange(f"final REWARD = {reward}")
                 running_return = 0.0
                 intervention_count = 0
                 intervention_steps = 0
@@ -336,7 +337,11 @@ def actor(agent, data_store, intvn_data_store, env, sampling_rng):
                 obs, _ = env.reset()
                 time.sleep(0.2) #########################provo a vedere se non crasha
         # time.sleep(0.25) #########################provo A RALLENTARE FREQUENZA STEP -> con questo registrato 1h30
-        time.sleep(0.15) #########################provo A RALLENTARE FREQUENZA STEP
+        time.sleep(0.35) #########################provo A RALLENTARE FREQUENZA STEP
+
+        ####### 18 agosto, provo a rallentare ulteriormente frequenza step per vedere se miglioro sincronia gripper ed evito "inchiappamento 1-0-1-0-1"
+        # time.sleep(0.35) #########################provo A RALLENTARE FREQUENZA STEP
+
 
         # if step > 0 and config.buffer_period > 0 and step % config.buffer_period == 0:
         if step > 0 and buffer_period > 0 and step % buffer_period == 0:
@@ -415,7 +420,6 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
     # send the initial network to the actor
     server.publish_network(agent.state.params)
     print_green("sent initial network to actor")
-    # print_green("\n ############# AAAAAAAAAAAAAAAAAAAAAA")
 
     # 50/50 sampling from RLPD, half from demo and half from online experience
     replay_iterator = replay_buffer.get_iterator(
@@ -488,7 +492,6 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
             wandb_logger.log({"timer": timer.get_average_times()}, step=step)
 
         # stampa valore di step
-        # print_green(f"\n CCCCCCCCCCCCCCCCCCC ############# step {step}")
         if (
             step > 0
             # and config.checkpoint_period
@@ -496,7 +499,6 @@ def learner(rng, agent, replay_buffer, demo_buffer, wandb_logger=None):
             # and step % config.checkpoint_period == 0
             and step % checkpoint_period == 0
         ):
-            # print_green(f"\n DDDDDDDDDDDDDDDDDDDdd ############# step {step}")
             
             checkpoints.save_checkpoint(
                 os.path.abspath(FLAGS.checkpoint_path), agent.state, step=step, keep=100
@@ -540,9 +542,9 @@ def main(_):
                 image_keys=image_keys,
                 # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot/"),  # Checkpoint del classifier addestrato senza gripper
                 # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper/"), # CON GRIPPER
-                checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info con scatola ROTTA condizioni recenti 12 AGOSTO
+                # checkpoint_path=os.path.abspath("classifier_ckpt/Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info con scatola ROTTA condizioni recenti 12 AGOSTO
+                checkpoint_path=os.path.abspath("classifier_ckpt/THIRD_VERSION_Real_robot_W_Gripper_EXTRA_Tuned/"), # CON GRIPPER & AGGIUNTA 150 info 19 AGOSTO
             )
-
             def reward_func(obs, info):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
                 pred = sigmoid(classifier(obs))
@@ -568,7 +570,8 @@ def main(_):
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
     ################################################################################################################################ 
     
-    env = UR_GripperPenaltyWrapper(env, penalty= 0.055) # aggiunge penalty per il gripper (provo altissimo = 0,055)
+    env = UR_GripperPenaltyWrapper(env, penalty= 0.1)
+    # env = UR_GripperPenaltyWrapper(env, penalty= 0.75) # aggiunge penalty per il gripper (provo altissimo = 0,055) --- ALTISSIMISSSSSIMO 0,255
     # wrapper del trainer
     env = RecordEpisodeStatistics(env)
 
@@ -661,7 +664,7 @@ def main(_):
                 print(" path da cui prendo trans per DEMO BUFFER:   ", path)
                 transitions = pkl.load(f)
                 for transition in transitions:
-                    if 'infos' in transition and 'grasp_penalty' in transition['infos']: #infos con la s _> c'è solo in demo e non in suc/fail
+                    if 'infos' in transition and 'grasp_penalty' in transition['infos']:
                         transition['grasp_penalty'] = transition['infos']['grasp_penalty']
                     demo_buffer.insert(transition)
         print_green(f"demo buffer size: {len(demo_buffer)}")

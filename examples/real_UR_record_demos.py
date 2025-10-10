@@ -26,6 +26,7 @@ from franka_env.envs.wrappers import (
     Quat2EulerWrapper,
     MultiCameraBinaryRewardClassifierWrapper,
     UR_GripperPenaltyWrapper,
+    UR_ScrewdriverTouchPenaltyWrapper,
 )
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 from serl_launcher.networks.reward_classifier import load_classifier_func
@@ -188,12 +189,13 @@ def main(_):
                 # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore/"), # mini test avvitatore
                 # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore_FineTuned_1Settembre_/"), #
                 # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_test_avvitatore_Sec_FineTuned_2Settembre_/"), # LASCO MA BUONO! FATTO TRAININ "FUNZIONANTE" CON QUESTO ckpt : Avvitatore_rlpd_training_1st_Test
-                checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"), #
+                # checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"), # con questo fato traing perfetto (Avvitatore_rlpd_training_2nd_Test)
+                checkpoint_path=os.path.abspath("classifier_ckpt/WellSizedImages_avvitatore_AfterCATASTROFE_5Settembre_/"), # provo recovery dopo spostamento (minuscolo) camera realsense dovuto a sbabbiamento del robot)
             ) 
             def reward_func(obs, info):
                 sigmoid = lambda x: 1 / (1 + jnp.exp(-x))
                 pred = sigmoid(classifier(obs))
-                if int(pred[0] > 0.80):                    
+                if int(pred[0] > 0.84):                    
                     print_green(f"prediction del classifier = {sigmoid(classifier(obs))}")
                 else:
                     print_boh(f"prediction del classifier = {sigmoid(classifier(obs))}")
@@ -205,13 +207,13 @@ def main(_):
                     print_boh(f"Y FORCE < -1  = {info["is_inserted_enough"]}")
 
                 # return int(pred[0] > 0.95) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
-                return int(pred[0] > 0.99 and info["is_inserted_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
+                return int(pred[0] > 0.84 and info["is_inserted_enough"]) # obs["state"][0,3] è altezza tcp rispetto a pu nto inizilae (parte da 0 e positivo verso basso ->  > 0.14 corrispnde ad altezza assoluta < 0.26 del TCP)
 
             env = MultiCameraBinaryRewardClassifierWrapper(env, reward_func)
     ################################################################################################################################
    
     # env = UR_GripperPenaltyWrapper(env, penalty= 0.015) # aggiunge penalty per il gripper
-   
+    env = UR_ScrewdriverTouchPenaltyWrapper(env, penalty= 0.1) # aggiunge penalty per avvitatore TEST
 
     # ros_node.reset_cmd()     # Reset the recorder node
     obs, info = env.reset()  # Gym's reset
@@ -276,7 +278,7 @@ def main(_):
                 print_boh(f"\n\n  tentativo FALLITO (probabile TIMEOUT)") 
             trajectory = []
             returns = 0           
-            obs, info = env.reset()
+            obs, info = env.reset() #############################
             # ros_node.reset_cmd()
             #####################
         # time.sleep(0.05) # diminuire il n di step

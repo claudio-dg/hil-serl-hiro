@@ -249,7 +249,7 @@ def main(_):
         )
 
     checkpoints.save_checkpoint(
-        os.path.join(os.getcwd(), "classifier_ckpt/WellSizedImages_avvitatore_PostTraining_Ottimizzazione_3Settembre_/"),
+        os.path.join(os.getcwd(), "classifier_ckpt/WellSizedImages_avvitatore_AfterCATASTROFE_5Settembre_/"),
         classifier,
         step=FLAGS.num_epochs,
         overwrite=True,

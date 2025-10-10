@@ -41,7 +41,7 @@ def print_boh(x):
     return print("\033[95m {}\033[00m".format(x))
 
 FLAGS = flags.FLAGS # original succ = 200
-flags.DEFINE_integer("successes_needed", 75, "Number of successful transistions to collect.")
+flags.DEFINE_integer("successes_needed", 150, "Number of successful transistions to collect.")
 proprio_keys = ["tcp_pose", "gripper_pose"] 
 # proprio_keys = ["tcp_pose", "tcp_vel", "gripper_pose"] 
 
@@ -77,7 +77,6 @@ def main(_):
     # add wrappers
     env = RelativeFrame(env) # wrapper per convertire observation da frame base a frame "fittizio" = quello iniziale dell'end effector
     env = Quat2EulerWrapper(env) # converte tcp pose rotation da quat a euler
-    # commento SerloBs per testare senzxa immagini senno sto wrapper credo generi errore
     env = SERLObsWrapper(env, proprio_keys=proprio_keys) # wrapper per rendere flattend le observation state
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None) # organizza in chunk di dim=1 nel mio caso (resiza anche images con batch size)
     # env = UR_GripperPenaltyWrapper(env, penalty=0.1) # aggiunge penalty per il gripper
@@ -95,7 +94,7 @@ def main(_):
     print("press enter to record a successful transition.\n")
     
     # while len(successes) < success_needed:            ###### To record SUCCESSES 
-    while len(failures) < 150:                          ###### To record FAILURES 
+    while len(failures) < 200:                          ###### To record FAILURES 
         # if start_key:
         #############################################
         actions = np.zeros(4) # fake policy di zeri
@@ -155,12 +154,12 @@ def main(_):
     if not os.path.exists("./classifier_data"):
         os.makedirs("./classifier_data")
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"./classifier_data/succ/EXTRA_STORTO_Wsized_TEST_SCREWDRIVER_IMG_{success_needed}_success_images_{uuid}.pkl"
+    file_name = f"./classifier_data/succ/EXTRA_POSTCatastrofe_Wsized_SCREWDRIVER_IMG_{success_needed}_success_images_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(successes, f)
         print(f"saved {success_needed} successful transitions to {file_name}")
 
-    file_name = f"./classifier_data/fails/Wsized_75Bug_TEST_SCREWDRIVER_IMG_failure_imgs_{uuid}.pkl"
+    file_name = f"./classifier_data/fails/EXTRA_POSTCatastrofe__200_SCREWDRIVER_IMG_failure_imgs_{uuid}.pkl"
     with open(file_name, "wb") as f:
         pkl.dump(failures, f)
         print(f"saved {len(failures)} failure transitions to {file_name}")
